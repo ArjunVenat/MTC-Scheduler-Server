@@ -1,3 +1,5 @@
+##Takes in Excel data, parses it into the standard format, and passes it to the solution.py file
+
 import pandas as pd
 import numpy as np
 
