@@ -64,16 +64,18 @@ class Excel_Parser:
         #Currently working on this part
         print(self.workers_table)
         
+        id_name_dict = dict(zip(self.workers_table[:, 1], self.workers_table[:, 0]))
+        
         for i in self.day_breakdown_list:
-            temp = i.iloc[2:, 0]
-            for row in temp:
-                id = self.workers_table[np.where(self.workers_table == row), 0]
-                row = id[0]
-            print(temp)
+            #print(i)
+            i.iloc[:, 0] = i.iloc[:, 0].replace(id_name_dict)
+            
+        print(self.day_breakdown_list)
                             
     def get_preference_matrix(self):
-        self.pref_matrix = np.full((self.num_workers, self.num_days, self.num_shifts), self.largeNum)
-        return self.pref_matrix
+        for j in self.day_breakdown_list:
+            for i in j:
+                ...     
         
 if __name__=="__main__":
     ep = Excel_Parser("MTC Availability Template.xlsx")
@@ -89,4 +91,4 @@ if __name__=="__main__":
     #x_ijk = ep.get_preference_matrix()
     #print(x_ijk.shape)
     
-    #ep.change_name_to_worker_id()
+    ep.change_name_to_worker_id()
