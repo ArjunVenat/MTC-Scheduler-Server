@@ -12,7 +12,7 @@ def get_data(mode, file_path=""):
         student_workers, x_ijk = ep.get_all_data()
         i, j, k = x_ijk.shape
         l_ijk = np.full((i, j, k), 2)
-        u_ijk = np.full((i, j, k), 5)
+        u_ijk = np.full((i, j, k), 6)
     
         #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
         l_ijk[:, 4, 4:] = 0
@@ -45,9 +45,11 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     GLAs = student_workers[np.where(student_workers[:, 2] == "GLA")]
     TAs = student_workers[np.where(student_workers[:, 2] == "TA")]
     
-    print(PLAs)
-    print(GLAs)
-    print(TAs)
+    #print(PLAs)
+    #print(GLAs)
+    #print(TAs)
+
+    #print(len(PLAs), len(GLAs), len(TAs))
     
     ## Workers who prefer Back-To-Back Shifts ##
     # Back_To_Back_Workers = student_workers[np.where(student_workers[:, 4] == "Back-To-Back")]
@@ -59,7 +61,10 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     for i in range(x_ijk.shape[0]):
         for j in range(x_ijk.shape[1]):
             for k in range(x_ijk.shape[2]):
-                a_ijk[(i, j, k)] = LpVariable(name=f"a({i},{j},{k})", lowBound=0, upBound=1, cat=LpBinary)
+                name_i = student_workers[i, 1]
+                day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][j]
+                shift = ["10-11", "11-12", "12-1", "1-2", "2-3", "3-4", "4-5", "5-6"][k]
+                a_ijk[(i, j, k)] = LpVariable(name=f"a({i},{j},{k})", lowBound=0, upBound=1, cat=LpInteger)
                 varsKey[f"a({i},{j},{k})"] = (i, j, k)
     
         
@@ -76,7 +81,15 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                     for j in range(x_ijk.shape[1])
-                    for k in range(x_ijk.shape[2])]) == 1 # Change from 1 to the worker's preferred number of hours (student_workers[i, 3])
+                    for k in range(x_ijk.shape[2])]) <= 1 # Change from 1 to the worker's preferred number of hours (student_workers[i, 3])
+            )
+        
+
+    for i in PLAs[:, 0]:
+        scheduler_model += (
+                    lpSum([a_ijk[i, j, k]
+                    for j in range(x_ijk.shape[1])
+                    for k in range(x_ijk.shape[2])]) >= 1 # Change from 1 to the worker's preferred number of hours (student_workers[i, 3])
             )
     
     ## GLAs and TAs work two shifts ##
@@ -85,7 +98,14 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                         for j in range(x_ijk.shape[1])
-                        for k in range(x_ijk.shape[2])]) == 2 # Change from 2 to the worker's preferred number of hours (student_workers[i, 3])
+                        for k in range(x_ijk.shape[2])]) <= 2 # Change from 2 to the worker's preferred number of hours (student_workers[i, 3])
+            )
+        
+    for i in np.vstack((GLAs, TAs))[:, 0]:
+        scheduler_model += (
+                    lpSum([a_ijk[i, j, k]
+                        for j in range(x_ijk.shape[1])
+                        for k in range(x_ijk.shape[2])]) >= 2 # Change from 2 to the worker's preferred number of hours (student_workers[i, 3])
             )
     
     ## Set lower and upper bound on number of workers for each shift ##
@@ -126,8 +146,11 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     result_array = [[[] for _ in range(num_k)] for _ in range(num_j)]
 
     for v in scheduler_model.variables():
+        #print(v)
         if v.varValue is not None and v.varValue > 1e-6:
             i, j, k = varsKey[v.name]
+            print((i, j, k), v.name)
+            print(x_ijk[i, j, k])
             worker_name = student_workers[np.where(student_workers[:, 0] == i)][0, 1]
             #result_array[j][k].append(worker_name)
             result_array[j][k].append(i)
@@ -136,5 +159,9 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
 
 if __name__=="__main__":
     student_workers, x_ijk, l_ijk, u_ijk = get_data("Excel", "MTC Availability Template.xlsx")
+    #print(x_ijk[35, :, :])
+    print(x_ijk[13, 4, 2])
+    print(x_ijk[13, 4, 3])
     solution = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
-    print(solution)
+    for i in solution:
+        print(i, "\n")
