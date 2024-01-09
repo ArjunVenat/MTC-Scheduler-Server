@@ -21,7 +21,16 @@ def get_data(mode, file_path=""):
         return (student_workers, x_ijk, l_ijk, u_ijk)
     
     if (mode == "Qualtrics"):
-        ...
+        student_workers, x_ijk = clean_and_parse(input_path=file_path)
+        i, j, k = x_ijk.shape
+        l_ijk = np.full((i, j, k), 2)
+        u_ijk = np.full((i, j, k), 6)
+    
+        #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
+        l_ijk[:, 4, 4:] = 0
+        u_ijk[:, 4, 4:] = 0
+        
+        return (student_workers, x_ijk, l_ijk, u_ijk)
         
 def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     ## student_workers is an NumPy Array with shape (n, 5), where n is the number of student workers
@@ -41,6 +50,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     
     scheduler_model = LpProblem("MTC Scheduler", LpMinimize)
 
+
     PLAs = student_workers[np.where(student_workers[:, 2] == "PLA")]
     GLAs = student_workers[np.where(student_workers[:, 2] == "GLA")]
     TAs = student_workers[np.where(student_workers[:, 2] == "TA")]
@@ -52,8 +62,8 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     #print(len(PLAs), len(GLAs), len(TAs))
     
     ## Workers who prefer Back-To-Back Shifts ##
-    # Back_To_Back_Workers = student_workers[np.where(student_workers[:, 4] == "Back-To-Back")]
-    # Same_Day_Workers = student_workers[np.where(student_workers[:, 4] == "Same-Day")]
+    # Back_To_Back_Workers = student_workers[np.where(student_workers[:, 4] == "Back-to-back shifts")]
+    # Same_Day_Workers = student_workers[np.where(student_workers[:, 4] == "Same-day shifts")]
     
     ### Initialize Decision Variables ###
     a_ijk = {}
@@ -77,36 +87,38 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     ### Constraints ###
 
     ## PLAs work one shift ##
-    for i in PLAs[:, 0]:
-        scheduler_model += (
-                    lpSum([a_ijk[i, j, k]
-                    for j in range(x_ijk.shape[1])
-                    for k in range(x_ijk.shape[2])]) <= 1 # Change from 1 to the worker's preferred number of hours (student_workers[i, 3])
-            )
-        
 
     for i in PLAs[:, 0]:
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                     for j in range(x_ijk.shape[1])
-                    for k in range(x_ijk.shape[2])]) >= 1 # Change from 1 to the worker's preferred number of hours (student_workers[i, 3])
+                    for k in range(x_ijk.shape[2])]) >= 1 
+            )
+
+    for i in PLAs[:, 0]:
+        scheduler_model += (
+                    lpSum([a_ijk[i, j, k]
+                    for j in range(x_ijk.shape[1])
+                    for k in range(x_ijk.shape[2])]) <= 1 #student_workers[i, 3]
             )
     
     ## GLAs and TAs work two shifts ##
-    
+
     for i in np.vstack((GLAs, TAs))[:, 0]:
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                         for j in range(x_ijk.shape[1])
-                        for k in range(x_ijk.shape[2])]) <= 2 # Change from 2 to the worker's preferred number of hours (student_workers[i, 3])
+                        for k in range(x_ijk.shape[2])]) >= 2
+            )
+ 
+
+    for i in np.vstack((GLAs, TAs))[:, 0]:
+        scheduler_model += (
+                    lpSum([a_ijk[i, j, k]
+                        for j in range(x_ijk.shape[1])
+                        for k in range(x_ijk.shape[2])]) <= 2 #student_workers[i, 3]
             )
         
-    for i in np.vstack((GLAs, TAs))[:, 0]:
-        scheduler_model += (
-                    lpSum([a_ijk[i, j, k]
-                        for j in range(x_ijk.shape[1])
-                        for k in range(x_ijk.shape[2])]) >= 2 # Change from 2 to the worker's preferred number of hours (student_workers[i, 3])
-            )
     
     ## Set lower and upper bound on number of workers for each shift ##
     
@@ -127,6 +139,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     ## Handle Back-To-Back Shifts ##
     """
     for i in Back_To_Back_Workers[:, 0]:
+
             scheduler_model += (
                     lpSum(np.to_binary([a_ijk[i, j, :]) & (np.to_binary(a_ij) >> 1) for j in x_ijk.shape[1]]) > 0)
         
@@ -152,16 +165,37 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
             print((i, j, k), v.name)
             print(x_ijk[i, j, k])
             worker_name = student_workers[np.where(student_workers[:, 0] == i)][0, 1]
-            #result_array[j][k].append(worker_name)
-            result_array[j][k].append(i)
-        
-    return result_array
+            result_array[j][k].append(worker_name)
+            #result_array[j][k].append(i)
+    
+    result_array_transposed = list(map(list, zip(*result_array)))
+
+    time_columns = [
+    "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
+    "3-4 PM", "4-5 PM", "5-6 PM"
+    ]
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
+    # Create a DataFrame with days of the week as index and time columns as columns
+    df = pd.DataFrame(result_array_transposed, index=time_columns, columns=days_of_week)
+
+    return df
+
+
 
 if __name__=="__main__":
-    student_workers, x_ijk, l_ijk, u_ijk = get_data("Excel", "MTC Availability Template.xlsx")
-    #print(x_ijk[35, :, :])
-    print(x_ijk[13, 4, 2])
-    print(x_ijk[13, 4, 3])
-    solution = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
-    for i in solution:
-        print(i, "\n")
+    student_workers, x_ijk, l_ijk, u_ijk = get_data("Qualtrics", "MTC Availability_January 7, 2024_15.11.xlsx")
+    df = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
+    df.to_excel(f"output_qualtrics.xlsx")
+    
+    student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e = get_data("Excel", "MTC Availability Template.xlsx")
+    df = compute_solution(student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e)
+
+    #check_equal = x_ijk != x_ijk_e
+
+    #nonequal_indices = np.where(check_equal)
+
+    #print(nonequal_indices)
+
+    df.to_excel(f"output_excel.xlsx")
+
