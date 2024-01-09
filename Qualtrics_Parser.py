@@ -8,8 +8,8 @@ def clean_and_convert(input_path, output_path):
     original_to_new_mapping = {
         "Name": "Name",
         "Select your Position": "Position",
-        "If you plan to work 2+ hours per week, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
-        "PLA's work a minimum of 1 MTC hour a week and TA's work 2. If you would prefer to work a greater number of hours than your position minimum, please indicate how many. Note that these requests cannot always be accommodated.": "Max-hours",
+        "PLA's and Graders work a minimum of 1 hour a week, while TA's and GLA's work 2. If you'd like to work additional hours, please indicate the maximum number of hours you would like to work in a week, otherwise leave this field blank.": "Max-hours",
+        "If you plan to work more than one shift, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
         "Which of the following courses do you feel qualified to Tutor?": "Courses",
     }
 
@@ -22,7 +22,7 @@ def clean_and_convert(input_path, output_path):
 
     for day in days_of_week:
         for time in time_columns:
-            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled zeroes. - {time} - {day}"
+            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. - {time} - {day}"
             new_column_name = f"{time} {day}"
             original_to_new_mapping[original_column_name] = new_column_name
 
@@ -82,13 +82,33 @@ def clean_and_convert(input_path, output_path):
     ]
 
     for column in all_time_columns:
-        df[column] = df[column].apply(lambda x: 10000 if (x == "X" or x == 0) else x ** 2)
+        df[column] = df[column].apply(lambda x: x**2 if (x > 0) else 10000)
+
+    def update_max_hours(row):
+      if pd.notna(row["Max-hours"]):
+        return row["Max-hours"]
+      elif row["Position"] in ["PLA", "Grader/ Greeter"]:
+        return 1
+      else:
+        return 2
+
+    def update_back_to_back(row):
+      if row["Max-hours"] in [1]:
+        return "NaN"
+      else:
+        return row["Back-to-Back"]
+
+    df["Max-hours"] = df.apply(update_max_hours, axis=1)
+    df["Back-to-Back"] = df.apply(update_back_to_back, axis=1)
+
+    # Add an "Index" column starting from 0
+    df.insert(0, "Index", range(len(df)))
 
     df.to_excel(output_path, index=False)
 
     print("Conversion to preference values complete. Saved to", output_path)
 
 # Example usage
-input_path = "/content/MTC Availability_December 25, 2023_18.37.xlsx"
+input_path = "/content/MTC Availability_January 7, 2024_15.11.xlsx"
 output_path = "final_cleaned_and_converted.xlsx"
 clean_and_convert(input_path, output_path)
