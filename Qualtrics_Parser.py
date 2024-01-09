@@ -103,7 +103,7 @@ def clean_and_parse(input_path):
     # Add an "Index" column starting from 0
     df.insert(0, "Index", range(len(df)))
     
-    df.to_excel("final cleaned and converted.xlsx")
+    df.to_excel("final cleaned and.xlsx")
 
     ########################### Parsing #################################
 
