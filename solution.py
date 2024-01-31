@@ -27,6 +27,7 @@ def get_data(mode, file_path=""):
         u_ijk = np.full((i, j, k), 6)
     
         #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
+        # TODO: Read in lower and upper bounds on number of workers from the front end
         l_ijk[:, 4, 4:] = 0
         u_ijk[:, 4, 4:] = 0
         
@@ -99,7 +100,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                     for j in range(x_ijk.shape[1])
-                    for k in range(x_ijk.shape[2])]) <= 1 #student_workers[i, 3]
+                    for k in range(x_ijk.shape[2])]) <= student_workers[i, 3]
             )
     
     ## GLAs and TAs work two shifts ##
@@ -116,7 +117,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                         for j in range(x_ijk.shape[1])
-                        for k in range(x_ijk.shape[2])]) <= 3 #student_workers[i, 3]
+                        for k in range(x_ijk.shape[2])]) <= student_workers[i, 3]
             )
         
     
@@ -152,6 +153,26 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
                 scheduler_model += (
                         lpSum( for j in x_ijk.shape[1]]) > 0)
     """
+
+    # Handle Social Credit Scores
+    # Philosophy is to have a minimum average social score on each shift so that
+    # social and reserved student workers get paired together
+    
+    ### Calculate Overall Average Social Score ###
+    social_score_column_index = np.where(student_workers[0] == "social_credit_score")[0][0]
+    overall_average_social_score = np.mean(student_workers[:, social_score_column_index])
+
+    ### Constraints for Average Social Score ###
+    for j in range(x_ijk.shape[1]):
+        for k in range(x_ijk.shape[2]):
+            # Extract social credit scores for workers assigned to the shift
+            social_scores = [student_workers[i, social_score_column_index] for i in range(x_ijk.shape[0]) if value(a_ijk[i, j, k]) > 0]
+
+            # Ensure that the average social score is at least overall average - 0.5
+            if len(social_scores) > 0:  # Check if there are workers assigned to the shift
+                scheduler_model += (
+                    lpSum(social_scores) / len(social_scores) >= overall_average_social_score - 0.5
+                )
 
     scheduler_model.solve()
     scheduler_model.writeLP("mtc_scheduler_model.lp")
