@@ -3,12 +3,12 @@ import numpy as np
 
 def clean_data(
     input_path, 
-    time_columns = [
+    time_columns=[
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
-    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     ):
-    
+
     # Initial Qualtrics Cleaning
     df = pd.read_excel(input_path, header=1)
 
@@ -40,6 +40,7 @@ def clean_data(
     for column in all_time_columns:
         df[column] = df[column].apply(lambda x: x**2 if (x > 0) else 10000)
 
+
     def update_max_hours(row):
         if pd.notna(row["Max-hours"]):
             return row["Max-hours"]
@@ -65,28 +66,42 @@ def clean_data(
 
 def clean_and_parse(
     input_path,
-    time_columns = [
+    time_columns=[
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
-    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     ):
 
-    
     df = clean_data(input_path)
-    
 
-    student_workers = df.iloc[:, :6].to_numpy()
-    preferences = df.iloc[:, 6:]
+    prioritize = list(range(len(df)))
+    # TODO: Read in priority scores of 0 or 1 from the front end here
+    for i in range(len(df)):
+        prioritize[i] = i % 2  # Set it to be alternating for now
+
+    social_credit_score = list(range(len(df)))
+    # TODO: Read in social scores of 1 thru 5 from the front end here
+    for i in range(len(df)):
+        social_credit_score[i] = i % 5 + 1  # Set it to be alternating for now
+
+    # Insert social_credit_score column into df
+    df.insert(loc=1, column="social_credit_score", value=social_credit_score)
+
+    student_workers = df.iloc[:, :7].to_numpy()
+    preferences = df.iloc[:, 7:]
     x_ijk = np.zeros((len(df), len(days_of_week), len(time_columns)))
 
+    # Read preference scores into data frame and cut it in half for workers who are prioritized
     for i in range(len(df)):
         for j in range(len(days_of_week)):
             for k in range(len(time_columns)):
-                x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns)*j + k])
+                x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns) * j + k])
+                if prioritize[i] == 1 and x_ijk[i, j, k] != 10000:
+                    x_ijk[i, j, k] = x_ijk[i, j, k] / 2
 
     return df, (student_workers, x_ijk)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     # Example usage
     input_path = "MTC Availability_January 7, 2024_15.11.xlsx"
     cleaned_df, (student_workers, x_ijk) = clean_and_parse(input_path)
