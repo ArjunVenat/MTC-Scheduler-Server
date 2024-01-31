@@ -1,10 +1,14 @@
 import pandas as pd
 import numpy as np
 
-def clean_and_parse(input_path):
-    ########################### Cleaning #################################
-
-
+def clean_data(
+    input_path, 
+    time_columns = [
+        "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
+        "3-4 PM", "4-5 PM", "5-6 PM"],
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    ):
+    
     # Initial Qualtrics Cleaning
     df = pd.read_excel(input_path, header=1)
 
@@ -15,13 +19,6 @@ def clean_and_parse(input_path):
         "If you plan to work more than one shift, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
         "Which of the following courses do you feel qualified to Tutor?": "Courses",
     }
-
-    time_columns = [
-        "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
-        "3-4 PM", "4-5 PM", "5-6 PM"
-    ]
-
-    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
     for day in days_of_week:
         for time in time_columns:
@@ -38,88 +35,60 @@ def clean_and_parse(input_path):
 
     df = df[list(original_to_new_mapping.values())]
 
-    """
-        # Save the cleaned data to a new Excel file
-        df.to_excel(output_path, index=False)
-
-        print("Cleaning complete. Saved to", output_path)
-
-        # Adding overnight column
-        df = pd.read_excel(output_path)
-
-
-        day_columns = [
-            ('5-6 PM Monday', '10-11 AM Tuesday'),
-            ('5-6 PM Tuesday', '10-11 AM Wednesday'),
-            ('5-6 PM Wednesday', '10-11 AM Thursday'),
-            ('5-6 PM Thursday', '10-11 AM Friday')
-        ]
-
-        for last_shift, next_day_first_shift in day_columns:
-            overnight_column_name = f'Overnight {last_shift} - {next_day_first_shift}'
-            last_shift_index = df.columns.get_loc(last_shift)
-            next_day_first_shift_index = df.columns.get_loc(next_day_first_shift)
-            insert_index = next_day_first_shift_index
-            df.insert(insert_index, overnight_column_name, 0)
-
-        df.to_excel(output_path, index=False)
-
-        print("Overnight columns added. Saved to", output_path)
-    """
-
-    all_time_columns = [
-        '10-11 AM Monday', '11-12 PM Monday', '12-1 PM Monday', '1-2 PM Monday', '2-3 PM Monday',
-        '3-4 PM Monday', '4-5 PM Monday', '5-6 PM Monday',
-        '10-11 AM Tuesday', '11-12 PM Tuesday', '12-1 PM Tuesday', '1-2 PM Tuesday', '2-3 PM Tuesday',
-        '3-4 PM Tuesday', '4-5 PM Tuesday', '5-6 PM Tuesday',
-        '10-11 AM Wednesday', '11-12 PM Wednesday', '12-1 PM Wednesday', '1-2 PM Wednesday', '2-3 PM Wednesday',
-        '3-4 PM Wednesday', '4-5 PM Wednesday', '5-6 PM Wednesday',
-        '10-11 AM Thursday', '11-12 PM Thursday', '12-1 PM Thursday', '1-2 PM Thursday', '2-3 PM Thursday',
-        '3-4 PM Thursday', '4-5 PM Thursday', '5-6 PM Thursday',
-        '10-11 AM Friday', '11-12 PM Friday', '12-1 PM Friday', '1-2 PM Friday', '2-3 PM Friday',
-        '3-4 PM Friday', '4-5 PM Friday', '5-6 PM Friday'
-    ]
+    all_time_columns = [f"{i} {j}" for j in days_of_week for i in time_columns]
 
     for column in all_time_columns:
-        df[column] = df[column].apply(lambda x: x if (x > 0) else 10000)
+        df[column] = df[column].apply(lambda x: x**2 if (x > 0) else 10000)
 
     def update_max_hours(row):
-      if pd.notna(row["Max-hours"]):
-        return row["Max-hours"]
-      elif row["Position"] in ["PLA", "Grader/ Greeter"]:
-        return 1
-      else:
-        return 2
+        if pd.notna(row["Max-hours"]):
+            return row["Max-hours"]
+        elif row["Position"] in ["PLA", "Grader/ Greeter"]:
+            return 1
+        else:
+            return 2
 
     def update_back_to_back(row):
-      if row["Max-hours"] in [1]:
-        return "NaN"
-      else:
-        return row["Back-to-Back"]
+        if row["Max-hours"] in [1]:
+            return "NaN"
+        else:
+            return row["Back-to-Back"]
 
     df["Max-hours"] = df.apply(update_max_hours, axis=1)
     df["Back-to-Back"] = df.apply(update_back_to_back, axis=1)
 
     # Add an "Index" column starting from 0
     df.insert(0, "Index", range(len(df)))
-    
-    df.to_excel("final cleaned and.xlsx")
 
-    ########################### Parsing #################################
+    return df
+
+
+def clean_and_parse(
+    input_path,
+    time_columns = [
+        "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
+        "3-4 PM", "4-5 PM", "5-6 PM"],
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    ):
+
+    
+    df = clean_data(input_path)
+    
 
     student_workers = df.iloc[:, :6].to_numpy()
     preferences = df.iloc[:, 6:]
     x_ijk = np.zeros((len(df), len(days_of_week), len(time_columns)))
-    #print(x_ijk.shape)
 
     for i in range(len(df)):
         for j in range(len(days_of_week)):
             for k in range(len(time_columns)):
                 x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns)*j + k])
-    
-    return (student_workers, x_ijk)
 
+    return df, (student_workers, x_ijk)
 
-# Example usage
-input_path = "MTC Availability_January 7, 2024_15.11.xlsx"
-student_workers, x_ijk = clean_and_parse(input_path)
+if __name__=="__main__":
+    # Example usage
+    input_path = "MTC Availability_January 7, 2024_15.11.xlsx"
+    cleaned_df, (student_workers, x_ijk) = clean_and_parse(input_path)
+
+    cleaned_df.to_excel("final_cleaned_and_converted.xlsx", index=False)

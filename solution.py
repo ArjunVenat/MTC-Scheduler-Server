@@ -21,7 +21,7 @@ def get_data(mode, file_path=""):
         return (student_workers, x_ijk, l_ijk, u_ijk)
     
     if (mode == "Qualtrics"):
-        student_workers, x_ijk = clean_and_parse(input_path=file_path)
+        cleaned, (student_workers, x_ijk) = clean_and_parse(input_path=file_path)
         i, j, k = x_ijk.shape
         l_ijk = np.full((i, j, k), 2)
         u_ijk = np.full((i, j, k), 6)
@@ -30,7 +30,7 @@ def get_data(mode, file_path=""):
         l_ijk[:, 4, 4:] = 0
         u_ijk[:, 4, 4:] = 0
         
-        return (student_workers, x_ijk, l_ijk, u_ijk)
+        return cleaned, (student_workers, x_ijk, l_ijk, u_ijk)
         
 def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     ## student_workers is an NumPy Array with shape (n, 5), where n is the number of student workers
@@ -74,7 +74,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
                 name_i = student_workers[i, 1]
                 day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][j]
                 shift = ["10-11", "11-12", "12-1", "1-2", "2-3", "3-4", "4-5", "5-6"][k]
-                a_ijk[(i, j, k)] = LpVariable(name=f"a({i},{j},{k})", lowBound=0, upBound=1, cat=LpInteger)
+                a_ijk[(i, j, k)] = LpVariable(name=f"a({i},{j},{k})", lowBound=0, upBound=1, cat=LpBinary)
                 varsKey[f"a({i},{j},{k})"] = (i, j, k)
     
         
@@ -116,7 +116,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                         for j in range(x_ijk.shape[1])
-                        for k in range(x_ijk.shape[2])]) <= 2 #student_workers[i, 3]
+                        for k in range(x_ijk.shape[2])]) <= 3 #student_workers[i, 3]
             )
         
     
@@ -154,6 +154,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     """
 
     scheduler_model.solve()
+    scheduler_model.writeLP("mtc_scheduler_model.lp")
     num_j = x_ijk.shape[1]
     num_k = x_ijk.shape[2]
     result_array = [[[] for _ in range(num_k)] for _ in range(num_j)]
@@ -184,18 +185,12 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
 
 
 if __name__=="__main__":
-    student_workers, x_ijk, l_ijk, u_ijk = get_data("Qualtrics", "MTC Availability_January 7, 2024_15.11.xlsx")
-    df = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
-    df.to_excel(f"output_qualtrics.xlsx")
+    cleaned, (student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q) = get_data("Qualtrics", "MTC Availability_January 7, 2024_15.11.xlsx")
+    solution = compute_solution(student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q)
+    solution.to_excel(f"output_qualtrics.xlsx")
     
-    student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e = get_data("Excel", "MTC Availability Template.xlsx")
-    df = compute_solution(student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e)
+    
 
-    #check_equal = x_ijk != x_ijk_e
-
-    #nonequal_indices = np.where(check_equal)
-
-    #print(nonequal_indices)
-
-    df.to_excel(f"output_excel.xlsx")
-
+    #student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e = get_data("Excel", "MTC Availability Template.xlsx")
+    #df = compute_solution(student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e)
+    #df.to_excel(f"output_excel.xlsx")
