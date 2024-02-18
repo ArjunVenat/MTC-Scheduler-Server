@@ -21,8 +21,8 @@ def get_data(mode, parameterTableOutput, file_path=""):
 #        return (student_workers, x_ijk, l_ijk, u_ijk)
     
     if (mode == "Qualtrics"):
-        socialButterflyScoreList, prioritizeList = parameterTableOutput
-        cleaned, (student_workers, x_ijk) = clean_and_parse(input_path=file_path, socialButterflyScoreList=socialButterflyScoreList, prioritizeList=prioritizeList)
+        social_credit_score_list, priority_list = parameterTableOutput
+        cleaned, (student_workers, x_ijk) = clean_and_parse(input_path=file_path, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
         i, j, k = x_ijk.shape
         l_ijk = np.full((i, j, k), 2)
         u_ijk = np.full((i, j, k), 6)
@@ -32,16 +32,19 @@ def get_data(mode, parameterTableOutput, file_path=""):
         l_ijk[:, 4, 4:] = 0
         u_ijk[:, 4, 4:] = 0
         
-        return cleaned, (student_workers, x_ijk, l_ijk, u_ijk, socialButterflyScoreList, prioritizeList)
-        
-def compute_solution(student_workers, x_ijk, l_ijk, u_ijk, socialButterflyScoreList, prioritizeList):
+        return cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list)
+    
+def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     ## student_workers is an NumPy Array with shape (n, 5), where n is the number of student workers
     # column 1 is the index in the table corresponding to that worker: int in range [0, n)
     # column 2 is the name of the worker: str
     # column 3 is the type of the workers (PLA/GLA/TA): str
-    # column 4 is the number of hours that the worker wants to work (the default is 1 for PLAs and 2 for GLAs/TAs unless additional hours were specified)
+    # column 4 is the number of hours that the worker wants to work (the default is 1 for PLAs and 2 for GLAs/TAs unless additional hours were specified): int
     # column 5 is their shift preference for the workers (NaN if 1 hour, Back-To-Back, Same-Day): str
-    
+    # column 6 is the list of courses that the worker feels comfortable teaching: str
+    # column 7 is their social credit score from 1-5: int
+    # column 8 is if they were given preference, which is also reflected by the change in the preference weights(Yes/No): str  
+
     ## x_ijk is a NumPy array with shape (n, d, s), where n is the number of student workers, d is the number of days, and s is the number of shifts
     # Each element represents worker i's preference for working in day j shift k (X, 1, 2, 3), where X indicates that they are unavailable, and is a large number (in this case it is set to 10000)
     # 1, 2, and 3 are in order of most preferable to least preferable: int
@@ -160,14 +163,14 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk, socialButterflyScoreL
     # social and reserved student workers get paired together
     
     ### Calculate Overall Average Social Score ###
-    social_score_column_index = np.where(student_workers[0] == "social_credit_score")[0][0]
-    overall_average_social_score = np.mean(student_workers[:, social_score_column_index])
+    overall_average_social_score = np.mean(student_workers[:, 6]) #column 7 --> index 6
+    print(overall_average_social_score)
 
     ### Constraints for Average Social Score ###
     for j in range(x_ijk.shape[1]):
         for k in range(x_ijk.shape[2]):
             # Extract social credit scores for workers assigned to the shift
-            social_scores = [student_workers[i, social_score_column_index] for i in range(x_ijk.shape[0]) if value(a_ijk[i, j, k]) > 0]
+            social_scores = [student_workers[i, 6] for i in range(x_ijk.shape[0]) if value(a_ijk[i, j, k]) > 0]
 
             # Ensure that the average social score is at least overall average - 0.5
             if len(social_scores) > 0:  # Check if there are workers assigned to the shift

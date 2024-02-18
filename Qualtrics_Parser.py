@@ -3,8 +3,8 @@ import numpy as np
 
 def clean_data(
     input_path, 
-    social_credit_score,
-    prioritize,
+    social_credit_score_list,
+    priority_list,
     time_columns=[
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
@@ -68,21 +68,26 @@ def clean_data(
 
 def clean_and_parse(    
     input_path,
-    social_credit_score,
-    prioritize,
+    social_credit_score_list,
+    priority_list,
     time_columns=[
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
     days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     ):
 
-    df = clean_data(input_path, social_credit_score, prioritize)
+    starting_of_preferences = 8 #number of first few columns
+
+
+    df = clean_data(input_path, social_credit_score_list, priority_list)
 
     # Insert social_credit_score column into df
-    df.insert(loc=1, column="social_credit_score", value=social_credit_score)
+    df.insert(loc=6, column="social_credit_score", value=social_credit_score_list)
+    df.insert(loc=7, column="prioritized?", value=["Yes" if x else "No" for x in priority_list])
 
-    student_workers = df.iloc[:, :7].to_numpy()
-    preferences = df.iloc[:, 7:]
+
+    student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
+    preferences = df.iloc[:, starting_of_preferences:]
     x_ijk = np.zeros((len(df), len(days_of_week), len(time_columns)))
 
     # Read preference scores into data frame and cut it in half for workers who are prioritized
@@ -90,11 +95,13 @@ def clean_and_parse(
         for j in range(len(days_of_week)):
             for k in range(len(time_columns)):
                 x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns) * j + k])
-                if prioritize[i] == 1 and x_ijk[i, j, k] != 10000:
-                    x_ijk[i, j, k] = x_ijk[i, j, k] / 2
-                elif prioritize[i] == 1 and x_ijk[i, j, k] == 10000:
-                    x_ijk[i, j, k] = x_ijk[i, j, k] * 2
-                    
+                if (priority_list[i] == True) and (x_ijk[i, j, k] != 10000):
+                    x_ijk[i, j, k] /= 2
+                    df.iloc[i, len(time_columns) * j + k + starting_of_preferences] = x_ijk[i, j, k]
+                elif (priority_list[i] == True) and (x_ijk[i, j, k] == 10000):
+                    x_ijk[i, j, k] *= 2 #Make it twice as bad if a prioritized student worker is given an unavailable shift
+                    df.iloc[i, len(time_columns) * j + k + starting_of_preferences] = x_ijk[i, j, k]
+                    #print(f"{prioritize[i]}, there for {i, j, k}, and x_ijk={x_ijk[i, j, k]}")
 
     return df, (student_workers, x_ijk)
 
