@@ -3,10 +3,12 @@ import numpy as np
 
 def clean_data(
     input_path, 
+    social_credit_score,
+    prioritize,
     time_columns=[
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
-    days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
     ):
 
     # Initial Qualtrics Cleaning
@@ -64,25 +66,17 @@ def clean_data(
     return df
 
 
-def clean_and_parse(
+def clean_and_parse(    
     input_path,
+    social_credit_score,
+    prioritize,
     time_columns=[
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
     days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     ):
 
-    df = clean_data(input_path)
-
-    prioritize = list(range(len(df)))
-    # TODO: Read in priority scores of 0 or 1 from the front end here
-    for i in range(len(df)):
-        prioritize[i] = i % 2  # Set it to be alternating for now
-
-    social_credit_score = list(range(len(df)))
-    # TODO: Read in social scores of 1 thru 5 from the front end here
-    for i in range(len(df)):
-        social_credit_score[i] = i % 5 + 1  # Set it to be alternating for now
+    df = clean_data(input_path, social_credit_score, prioritize)
 
     # Insert social_credit_score column into df
     df.insert(loc=1, column="social_credit_score", value=social_credit_score)
@@ -98,6 +92,9 @@ def clean_and_parse(
                 x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns) * j + k])
                 if prioritize[i] == 1 and x_ijk[i, j, k] != 10000:
                     x_ijk[i, j, k] = x_ijk[i, j, k] / 2
+                elif prioritize[i] == 1 and x_ijk[i, j, k] == 10000:
+                    x_ijk[i, j, k] = x_ijk[i, j, k] * 2
+                    
 
     return df, (student_workers, x_ijk)
 

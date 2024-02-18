@@ -5,23 +5,24 @@ from Qualtrics_Parser import *
 from pulp import *
 #from gurobipy import *
 
-def get_data(mode, file_path=""):
-    #mode is either Excel or Qualtrics
-    if (mode == "Excel"):
-        ep = Excel_Parser(file_path)
-        student_workers, x_ijk = ep.get_all_data()
-        i, j, k = x_ijk.shape
-        l_ijk = np.full((i, j, k), 2)
-        u_ijk = np.full((i, j, k), 6)
+def get_data(mode, parameterTableOutput, file_path=""):
+#    #mode is either Excel or Qualtrics
+#    if (mode == "Excel"):
+#        ep = Excel_Parser(file_path)
+#        student_workers, x_ijk = ep.get_all_data()
+#        i, j, k = x_ijk.shape
+#        l_ijk = np.full((i, j, k), 2)
+#        u_ijk = np.full((i, j, k), 6)
     
-        #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
-        l_ijk[:, 4, 4:] = 0
-        u_ijk[:, 4, 4:] = 0
+#        #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
+#        l_ijk[:, 4, 4:] = 0
+#        u_ijk[:, 4, 4:] = 0
         
-        return (student_workers, x_ijk, l_ijk, u_ijk)
+#        return (student_workers, x_ijk, l_ijk, u_ijk)
     
     if (mode == "Qualtrics"):
-        cleaned, (student_workers, x_ijk) = clean_and_parse(input_path=file_path)
+        socialButterflyScoreList, prioritizeList = parameterTableOutput
+        cleaned, (student_workers, x_ijk) = clean_and_parse(input_path=file_path, socialButterflyScoreList=socialButterflyScoreList, prioritizeList=prioritizeList)
         i, j, k = x_ijk.shape
         l_ijk = np.full((i, j, k), 2)
         u_ijk = np.full((i, j, k), 6)
@@ -31,9 +32,9 @@ def get_data(mode, file_path=""):
         l_ijk[:, 4, 4:] = 0
         u_ijk[:, 4, 4:] = 0
         
-        return cleaned, (student_workers, x_ijk, l_ijk, u_ijk)
+        return cleaned, (student_workers, x_ijk, l_ijk, u_ijk, socialButterflyScoreList, prioritizeList)
         
-def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
+def compute_solution(student_workers, x_ijk, l_ijk, u_ijk, socialButterflyScoreList, prioritizeList):
     ## student_workers is an NumPy Array with shape (n, 5), where n is the number of student workers
     # column 1 is the index in the table corresponding to that worker: int in range [0, n)
     # column 2 is the name of the worker: str
