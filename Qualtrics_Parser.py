@@ -17,14 +17,14 @@ def clean_data(
     original_to_new_mapping = {
         "Name": "Name",
         "Select your Position": "Position",
-        "PLA's and Graders work a minimum of 1 hour a week, while TA's and GLA's work 2. If you'd like to work additional hours, please indicate the maximum number of hours you would like to work in a week, otherwise leave this field blank.": "Max-hours",
+        "PLA's and Graders work a minimum of 1 hour a week in the MTC, while TA's and GLA's work 2 hours per week in the MTC. If you'd like to work additional hours, please indicate the maximum number of hours you would like to work in a week, otherwise leave this field blank.": "Max-hours",
         "If you plan to work more than one shift, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
         "Which of the following courses do you feel qualified to Tutor?": "Courses",
     }
 
     for day in days_of_week:
         for time in time_columns:
-            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. Answer as many choices as you can, or we may follow up and ask you to resubmit.. - {time} - {day}"
+            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. - {time} - {day}"
             new_column_name = f"{time} {day}"
             original_to_new_mapping[original_column_name] = new_column_name
 
