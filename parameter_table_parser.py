@@ -6,7 +6,7 @@ def parameter_table_parser(choices):
         #List of social_credit_scores Ex: [3, 2, 5, 2, ...]
         #List of prioritize choices [false, false, true, false, ...]
     
-    choices = choices[2:]
+    choices = choices[2:] #removing the 2 headers
 
     social_credit_scoreList = []
     priority_list = []
