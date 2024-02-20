@@ -24,7 +24,7 @@ def clean_data(
 
     for day in days_of_week:
         for time in time_columns:
-            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. - {time} - {day}"
+            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. Answer as many choices as you can, or we may follow up and ask you to resubmit.. - {time} - {day}"
             new_column_name = f"{time} {day}"
             original_to_new_mapping[original_column_name] = new_column_name
 
