@@ -22,7 +22,10 @@ def get_data(mode, parameterTableOutput, file_path=""):
     
     if (mode == "Qualtrics"):
         social_credit_score_list, priority_list = parameterTableOutput
-        cleaned, (student_workers, x_ijk) = clean_and_parse(input_path=file_path, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+        
+        cleaned = clean_data(input_path=file_path, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+        student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+
         i, j, k = x_ijk.shape
         l_ijk = np.full((i, j, k), 2)
         u_ijk = np.full((i, j, k), 6)
@@ -163,20 +166,20 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     # social and reserved student workers get paired together
     
     ### Calculate Overall Average Social Score ###
-    overall_average_social_score = np.mean(student_workers[:, 6]) #column 7 --> index 6
-    print(overall_average_social_score)
+    #overall_average_social_score = np.mean(student_workers[:, 6]) #column 7 --> index 6
+    #print(overall_average_social_score)
 
     ### Constraints for Average Social Score ###
-    for j in range(x_ijk.shape[1]):
-        for k in range(x_ijk.shape[2]):
+    #for j in range(x_ijk.shape[1]):
+    #    for k in range(x_ijk.shape[2]):
             # Extract social credit scores for workers assigned to the shift
-            social_scores = [student_workers[i, 6] for i in range(x_ijk.shape[0]) if value(a_ijk[i, j, k]) > 0]
-
+    #        social_scores = [a_ijk[i, j, k]*student_workers[i, 6] for i in range(x_ijk.shape[0])]
+            #print(social_scores)
             # Ensure that the average social score is at least overall average - 0.5
-            if len(social_scores) > 0:  # Check if there are workers assigned to the shift
-                scheduler_model += (
-                    lpSum(social_scores) / len(social_scores) >= overall_average_social_score - 0.5
-                )
+    #        if len(social_scores) > 0:  # Check if there are workers assigned to the shift
+    #            scheduler_model += (
+    #                lpSum(social_scores) / len(social_scores) >= overall_average_social_score - 0.5
+    #            )
 
     scheduler_model.solve()
     scheduler_model.writeLP("mtc_scheduler_model.lp")
@@ -204,18 +207,37 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
 
     # Create a DataFrame with days of the week as index and time columns as columns
     df = pd.DataFrame(result_array_transposed, index=time_columns, columns=days_of_week)
+    print(df)
 
     return df
 
 
 
 if __name__=="__main__":
-    cleaned, (student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q) = get_data("Qualtrics", "MTC Availability_January 7, 2024_15.11.xlsx")
-    solution = compute_solution(student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q)
-    solution.to_excel(f"output_qualtrics.xlsx")
-    
-    
 
-    #student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e = get_data("Excel", "MTC Availability Template.xlsx")
-    #df = compute_solution(student_workers_e, x_ijk_e, l_ijk_e, u_ijk_e)
-    #df.to_excel(f"output_excel.xlsx")
+    input_path = "MTC - D24 Availability_February 20, 2024_21.31.xlsx" ##Qualtrics here
+
+    social_credit_score_list = [3] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
+    priority_list = [False] * 49
+
+    parameterTableOutput = (social_credit_score_list, priority_list)
+
+    #cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list) = get_data("Qualtrics", parameterTableOutput=parameterTableOutput, file_path=input_path)
+    
+    cleaned_input_path = "cleaned.xlsx" #change the cleaned file path ehre <-----
+    cleaned = pd.read_excel(cleaned_input_path, header=1)
+
+    cleaned = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+    i, j, k = x_ijk.shape
+    l_ijk = np.full((i, j, k), 2)
+    u_ijk = np.full((i, j, k), 6)
+
+    #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
+    # TODO: Read in lower and upper bounds on number of workers from the front end
+    l_ijk[:, 4, 4:] = 0
+    u_ijk[:, 4, 4:] = 0
+    
+    solution = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
+
+    solution.to_excel(f"output_qualtrics.xlsx")
+    cleaned.to_excel(cleaned_input_path)

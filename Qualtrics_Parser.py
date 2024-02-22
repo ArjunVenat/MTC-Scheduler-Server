@@ -61,13 +61,17 @@ def clean_data(
     df["Back-to-Back"] = df.apply(update_back_to_back, axis=1)
 
     # Add an "Index" column starting from 0
+
     df.insert(0, "Index", range(len(df)))
+    # Insert social_credit_score column into df
+    df.insert(loc=6, column="social_credit_score", value=social_credit_score_list)
+    df.insert(loc=7, column="prioritized?", value=["Yes" if x else "No" for x in priority_list])
 
     return df
 
 
-def clean_and_parse(    
-    input_path,
+def parse_data(
+    df,
     social_credit_score_list,
     priority_list,
     time_columns=[
@@ -78,19 +82,11 @@ def clean_and_parse(
 
     starting_of_preferences = 8 #number of first few columns
 
-
-    df = clean_data(input_path, social_credit_score_list, priority_list)
-
-    # Insert social_credit_score column into df
-    df.insert(loc=6, column="social_credit_score", value=social_credit_score_list)
-    df.insert(loc=7, column="prioritized?", value=["Yes" if x else "No" for x in priority_list])
-
-
     student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
     preferences = df.iloc[:, starting_of_preferences:]
+
     x_ijk = np.zeros((len(df), len(days_of_week), len(time_columns)))
 
-    # Read preference scores into data frame and cut it in half for workers who are prioritized
     for i in range(len(df)):
         for j in range(len(days_of_week)):
             for k in range(len(time_columns)):
@@ -101,13 +97,19 @@ def clean_and_parse(
                 elif (priority_list[i] == True) and (x_ijk[i, j, k] == 10000):
                     x_ijk[i, j, k] *= 2 #Make it twice as bad if a prioritized student worker is given an unavailable shift
                     df.iloc[i, len(time_columns) * j + k + starting_of_preferences] = x_ijk[i, j, k]
-                    #print(f"{prioritize[i]}, there for {i, j, k}, and x_ijk={x_ijk[i, j, k]}")
 
-    return df, (student_workers, x_ijk)
+
+    # Read preference scores into data frame and cut it in half for workers who are prioritized
+
+
+    return (student_workers, x_ijk)
 
 if __name__ == "__main__":
     # Example usage
-    input_path = "MTC Availability_January 7, 2024_15.11.xlsx"
-    cleaned_df, (student_workers, x_ijk) = clean_and_parse(input_path)
+    input_path = "MTC - D24 Availability_February 20, 2024_21.31.xlsx"
+    
+    social_credit_score_list = [2] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
+    priority_list = [False] * 49
 
+    cleaned_df = clean_data(input_path, social_credit_score_list, priority_list)
     cleaned_df.to_excel("final_cleaned_and_converted.xlsx", index=False)

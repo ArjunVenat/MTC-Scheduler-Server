@@ -23,10 +23,12 @@ def get_cleaned():
 
     cleaned_df, (student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q, social_credit_score_list, priority_list) = get_data("Qualtrics", parameterTableOutput, file)
     solution = compute_solution(student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q)
+    print("solution df", solution)
 
     excel_file_path = 'solution_and_cleaned_data.xlsx'
-    solution.to_excel(excel_file_path, index=False, sheet_name="output solution")
-    cleaned_df.to_excel(excel_file_path, index=False, sheet_name="cleaned data")
+    with pd.ExcelWriter(excel_file_path) as writer:
+        solution.to_excel(writer, index=False, sheet_name="output solution")
+        cleaned_df.to_excel(writer, index=False, sheet_name="cleaned data")
 
     return send_file(excel_file_path, as_attachment=True)
 
