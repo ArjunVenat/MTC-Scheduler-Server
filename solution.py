@@ -6,24 +6,28 @@ from pulp import *
 #from gurobipy import *
 
 def get_data(mode, parameterTableOutput, file_path=""):
-#    #mode is either Excel or Qualtrics
-#    if (mode == "Excel"):
-#        ep = Excel_Parser(file_path)
-#        student_workers, x_ijk = ep.get_all_data()
-#        i, j, k = x_ijk.shape
-#        l_ijk = np.full((i, j, k), 2)
-#        u_ijk = np.full((i, j, k), 6)
-    
-#        #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
-#        l_ijk[:, 4, 4:] = 0
-#        u_ijk[:, 4, 4:] = 0
-        
-#        return (student_workers, x_ijk, l_ijk, u_ijk)
-    
     if (mode == "Qualtrics"):
         social_credit_score_list, priority_list = parameterTableOutput
         
         cleaned = clean_data(input_path=file_path, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+        student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+
+        i, j, k = x_ijk.shape
+        l_ijk = np.full((i, j, k), 2)
+        u_ijk = np.full((i, j, k), 6)
+    
+        #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
+        # TODO: Read in lower and upper bounds on number of workers from the front end
+        l_ijk[:, 4, 4:] = 0
+        u_ijk[:, 4, 4:] = 0
+        
+        return cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list)
+    
+    if (mode == "Cleaned"):
+        
+        social_credit_score_list, priority_list = parameterTableOutput
+        cleaned = pd.read_excel(input_path, header=1)
+
         student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
 
         i, j, k = x_ijk.shape
@@ -215,29 +219,16 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
 
 if __name__=="__main__":
 
-    input_path = "MTC - D24 Availability_February 20, 2024_21.31.xlsx" ##Qualtrics here
+    input_path = "MTC - D24 Availability_February 20, 2024_21.31.xlsx" ##Qualtrics file path here
+    mode = "Qualtrics"
 
-    social_credit_score_list = [3] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
+    social_credit_score_list = [2] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
     priority_list = [False] * 49
 
     parameterTableOutput = (social_credit_score_list, priority_list)
 
-    #cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list) = get_data("Qualtrics", parameterTableOutput=parameterTableOutput, file_path=input_path)
-    
-    cleaned_input_path = "cleaned.xlsx" #change the cleaned file path ehre <-----
-    cleaned = pd.read_excel(cleaned_input_path, header=1)
+    cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput=parameterTableOutput, file_path=input_path)
 
-    cleaned = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
-    i, j, k = x_ijk.shape
-    l_ijk = np.full((i, j, k), 2)
-    u_ijk = np.full((i, j, k), 6)
-
-    #Friday 2pm-6pm unavailable so change l_ijk and u_ijk to 0 for those
-    # TODO: Read in lower and upper bounds on number of workers from the front end
-    l_ijk[:, 4, 4:] = 0
-    u_ijk[:, 4, 4:] = 0
-    
     solution = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
-
     solution.to_excel(f"output_qualtrics.xlsx")
-    cleaned.to_excel(cleaned_input_path)
+    cleaned.to_excel(f"final_cleaned_and_converted.xlsx")
