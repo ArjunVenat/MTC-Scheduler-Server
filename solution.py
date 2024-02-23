@@ -197,26 +197,34 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     num_j = x_ijk.shape[1]
     num_k = x_ijk.shape[2]
     result_array = [[[] for _ in range(num_k)] for _ in range(num_j)]
-
+    model_analytics = [[] for _ in range(len(student_workers[:, 0]))]
+    
+    time_columns = [
+    "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
+    "3-4 PM", "4-5 PM", "5-6 PM"]
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    
     for v in scheduler_model.variables():
         #print(v)
         if v.varValue is not None and v.varValue > 1e-6:
             i, j, k = varsKey[v.name]
+            weight = x_ijk[i, j, k]
+            model_analytics[i].append(f"{days_of_week[j]} {time_columns[k]} shift with weight: {x_ijk[i, j, k]}")
             worker_name = student_workers[np.where(student_workers[:, 0] == i)][0, 1]
             result_array[j][k].append(worker_name)
             #result_array[j][k].append(i)
     
     result_array_transposed = list(map(list, zip(*result_array)))
 
-    time_columns = [
-    "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
-    "3-4 PM", "4-5 PM", "5-6 PM"]
-    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
 
     # Create a DataFrame with days of the week as index and time columns as columns
     df = pd.DataFrame(result_array_transposed, index=time_columns, columns=days_of_week)
-
-    return df
+    
+    # Create a DataFrame with student names as the index
+    analytics_df = pd.DataFrame(model_analytics, index=student_workers[:, 1])
+    
+    return df, analytics_df
 
 
 
@@ -232,6 +240,9 @@ if __name__=="__main__":
 
     cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput=parameterTableOutput, file_path=input_path)
 
-    solution = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
-    solution.to_excel(f"output_qualtrics.xlsx")
-    cleaned.to_excel(f"final_cleaned_and_converted.xlsx")
+    solution, analytics_df = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
+
+
+    with pd.ExcelWriter("solution.xlsx") as writer:
+            solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
+            analytics_df.to_excel(writer, sheet_name="model analytics")

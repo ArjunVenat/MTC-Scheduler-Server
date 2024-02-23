@@ -80,7 +80,9 @@ def parse_data(
     days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     ):
 
-    df.iloc[:, 6] = social_credit_score_list
+    #Correct the index column and update the new scores
+    df.iloc[:, 0] = range(len(df)) 
+    df.iloc[:, 6] = social_credit_score_list 
     df.iloc[:, 7] = ["Yes" if x else "No" for x in priority_list]
 
     starting_of_preferences = 8 #number of first few columns
@@ -119,4 +121,3 @@ if __name__ == "__main__":
 
     cleaned_df = pd.read_excel(cleaned_input_path)
     student_workers, x_ijk = parse_data(cleaned_df)
-    print(x_ijk[0])
