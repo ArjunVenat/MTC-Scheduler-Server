@@ -5,13 +5,20 @@ from Qualtrics_Parser import *
 from pulp import *
 #from gurobipy import *
 
-def get_data(mode, parameterTableOutput, file_path=""):
+def get_data(mode, parameterTableOutput, file_path):
     if (mode == "Qualtrics"):
+        # If raw Qualtrics input, we have the additional step of cleaning the data
+
+        # Get the social_credit_score_list and priority_list from the parameterTableOutput, which is the result of the parameter_table_parser function
         social_credit_score_list, priority_list = parameterTableOutput
         
+        # Pass the file as well as the lists into the cleaning function from Qualtrics_Parser.py, the result is a Pandas dataframe called cleaned
         cleaned = clean_data(input_path=file_path, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+
+        # Pass in the cleaned dataframe as well as, for consistency, the social_credit_score_list and priority_list        
         student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
 
+        # Now set the lower and upper bound for each shift. 
         i, j, k = x_ijk.shape
         l_ijk = np.full((i, j, k), 2)
         u_ijk = np.full((i, j, k), 6)
@@ -24,10 +31,11 @@ def get_data(mode, parameterTableOutput, file_path=""):
         return cleaned, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list)
     
     if (mode == "Cleaned"):
-        
+        # Same as mode == "Qualtrics" but we skip the clean_data part and go straight to parse_data
+ 
         social_credit_score_list, priority_list = parameterTableOutput
-        cleaned = pd.read_excel(input_path, header=1)
 
+        cleaned = pd.read_excel(file_path)
         student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
 
         i, j, k = x_ijk.shape
@@ -60,18 +68,19 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     # l_ijk is the minimum number of student workers required on day j shift k: int
     # u_ijk is the maximum number of student workers required on day j shift k: int
     
+    # Note for some code below:
+    # np.where(student_workers[:, 0] == i)[0] allows for a one-to-one mapping of the index column to the index of the worker i in x_ijk, l_ijk, u_ijk
+    # This is because there may be missing values for whatever reason, such as for intentionally deleting a survey response
+    # a_ijk is already accounted for in the indexing because it uses the key (i, j, k) instead of being an array with indices i, j, and k 
+
+
     scheduler_model = LpProblem("MTC Scheduler", LpMinimize)
 
 
     PLAs = student_workers[np.where(student_workers[:, 2] == "PLA")]
-    GLAs = student_workers[np.where(student_workers[:, 2] == "GLA")]
+    GLAs = student_workers[np.where(student_workers[:, 2] == "GLA")] # TODO: Change from GLA to Grader/Tutor
     TAs = student_workers[np.where(student_workers[:, 2] == "TA")]
     
-    #print(PLAs)
-    #print(GLAs)
-    #print(TAs)
-
-    #print(len(PLAs), len(GLAs), len(TAs))
     
     ## Workers who prefer Back-To-Back Shifts ##
     # Back_To_Back_Workers = student_workers[np.where(student_workers[:, 4] == "Back-to-back shifts")]
@@ -80,25 +89,22 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
     ### Initialize Decision Variables ###
     a_ijk = {}
     varsKey = {}
-    for i in range(x_ijk.shape[0]):
+    for i in student_workers[:, 0]:
         for j in range(x_ijk.shape[1]):
             for k in range(x_ijk.shape[2]):
-                name_i = student_workers[i, 1]
-                day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][j]
-                shift = ["10-11", "11-12", "12-1", "1-2", "2-3", "3-4", "4-5", "5-6"][k]
                 a_ijk[(i, j, k)] = LpVariable(name=f"a({i},{j},{k})", lowBound=0, upBound=1, cat=LpBinary)
                 varsKey[f"a({i},{j},{k})"] = (i, j, k)
     
         
     ### Objective Function ###
-    scheduler_model += lpSum([x_ijk[i, j, k]*a_ijk[i, j, k]
+    scheduler_model += lpSum([x_ijk[np.where(student_workers[:, 0] == i)[0], j, k]*a_ijk[i, j, k]
                                 for i in student_workers[:, 0]
                                 for j in range(x_ijk.shape[1])
                                 for k in range(x_ijk.shape[2])])
     
     ### Constraints ###
 
-    ## PLAs work one shift ##
+    ## PLAs work one shift minimum ##
 
     for i in PLAs[:, 0]:
         scheduler_model += (
@@ -111,10 +117,11 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                     for j in range(x_ijk.shape[1])
-                    for k in range(x_ijk.shape[2])]) <= student_workers[i, 3]
+                    for k in range(x_ijk.shape[2])]) <= student_workers[np.where(student_workers[:, 0] == i)[0], 3]
             )
     
-    ## GLAs and TAs work two shifts ##
+
+    ## GLAs and TAs work two shifts minimum ##
 
     for i in np.vstack((GLAs, TAs))[:, 0]:
         scheduler_model += (
@@ -128,7 +135,7 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         scheduler_model += (
                     lpSum([a_ijk[i, j, k]
                         for j in range(x_ijk.shape[1])
-                        for k in range(x_ijk.shape[2])]) <= student_workers[i, 3]
+                        for k in range(x_ijk.shape[2])]) <= student_workers[np.where(student_workers[:, 0] == i)[0], 3]
             )
         
     
@@ -138,14 +145,14 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         for k in range(x_ijk.shape[2]):
             scheduler_model += (
                     lpSum([a_ijk[i, j, k] 
-                        for i in student_workers[:, 0]]) >= l_ijk[i, j, k]
+                        for i in student_workers[:, 0]]) >= l_ijk[np.where(student_workers[:, 0] == i)[0], j, k]
             )
             
     for j in range(x_ijk.shape[1]):
         for k in range(x_ijk.shape[2]):
             scheduler_model += (
                     lpSum([a_ijk[i, j, k]
-                        for i in student_workers[:, 0]]) <= u_ijk[i, j, k]
+                        for i in student_workers[:, 0]]) <= u_ijk[np.where(student_workers[:, 0] == i)[0], j, k]
             )
     
     ## Handle Back-To-Back Shifts ##
@@ -195,8 +202,6 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
         #print(v)
         if v.varValue is not None and v.varValue > 1e-6:
             i, j, k = varsKey[v.name]
-            print((i, j, k), v.name)
-            print(x_ijk[i, j, k])
             worker_name = student_workers[np.where(student_workers[:, 0] == i)][0, 1]
             result_array[j][k].append(worker_name)
             #result_array[j][k].append(i)
@@ -205,13 +210,11 @@ def compute_solution(student_workers, x_ijk, l_ijk, u_ijk):
 
     time_columns = [
     "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
-    "3-4 PM", "4-5 PM", "5-6 PM"
-    ]
+    "3-4 PM", "4-5 PM", "5-6 PM"]
     days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
     # Create a DataFrame with days of the week as index and time columns as columns
     df = pd.DataFrame(result_array_transposed, index=time_columns, columns=days_of_week)
-    print(df)
 
     return df
 
@@ -222,8 +225,8 @@ if __name__=="__main__":
     input_path = "MTC - D24 Availability_February 20, 2024_21.31.xlsx" ##Qualtrics file path here
     mode = "Qualtrics"
 
-    social_credit_score_list = [2] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
-    priority_list = [False] * 49
+    social_credit_score_list = [2] * 55 #change this as you wish but we have 55 MTC workers and by default I have them getting all 3's
+    priority_list = [False] * 55
 
     parameterTableOutput = (social_credit_score_list, priority_list)
 

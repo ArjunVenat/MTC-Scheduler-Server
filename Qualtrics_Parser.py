@@ -46,7 +46,7 @@ def clean_data(
     def update_max_hours(row):
         if pd.notna(row["Max-hours"]):
             return row["Max-hours"]
-        elif row["Position"] in ["PLA", "Grader/ Greeter"]:
+        elif row["Position"] in ["PLA", "Grader/ Tutor"]:
             return 1
         else:
             return 2
@@ -80,7 +80,11 @@ def parse_data(
     days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     ):
 
+    df.iloc[:, 6] = social_credit_score_list
+    df.iloc[:, 7] = ["Yes" if x else "No" for x in priority_list]
+
     starting_of_preferences = 8 #number of first few columns
+
 
     student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
     preferences = df.iloc[:, starting_of_preferences:]
@@ -91,25 +95,28 @@ def parse_data(
         for j in range(len(days_of_week)):
             for k in range(len(time_columns)):
                 x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns) * j + k])
-                if (priority_list[i] == True) and (x_ijk[i, j, k] != 10000):
+                if (priority_list[i] == "Yes" or priority_list[i] == True) and (x_ijk[i, j, k] != 10000):
                     x_ijk[i, j, k] /= 2
-                    df.iloc[i, len(time_columns) * j + k + starting_of_preferences] = x_ijk[i, j, k]
-                elif (priority_list[i] == True) and (x_ijk[i, j, k] == 10000):
-                    x_ijk[i, j, k] *= 2 #Make it twice as bad if a prioritized student worker is given an unavailable shift
-                    df.iloc[i, len(time_columns) * j + k + starting_of_preferences] = x_ijk[i, j, k]
-
+                elif (priority_list[i] == "Yes" or priority_list[i] == True) and (x_ijk[i, j, k] == 10000):
+                    x_ijk[i, j, k] *= 2
 
     # Read preference scores into data frame and cut it in half for workers who are prioritized
-
+    print(x_ijk.shape)
 
     return (student_workers, x_ijk)
 
 if __name__ == "__main__":
     # Example usage
     input_path = "MTC - D24 Availability_February 20, 2024_21.31.xlsx"
-    
-    social_credit_score_list = [2] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
-    priority_list = [False] * 49
+    cleaned_input_path = "final_cleaned_and_converted.xlsx"
 
+    #If you want to make changes to the "final_cleaned_and_converted.xlsx" file, then keep the 4 lines below as is, otherwise comment out 
+
+    social_credit_score_list = [2] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
+    priority_list = [True] * 49
     cleaned_df = clean_data(input_path, social_credit_score_list, priority_list)
-    cleaned_df.to_excel("final_cleaned_and_converted.xlsx", index=False)
+    cleaned_df.to_excel(cleaned_input_path, index=False)
+
+    cleaned_df = pd.read_excel(cleaned_input_path)
+    student_workers, x_ijk = parse_data(cleaned_df)
+    print(x_ijk[0])

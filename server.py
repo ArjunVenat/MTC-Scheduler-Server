@@ -15,20 +15,44 @@ def get_cleaned():
     file = request.files['file']
     choices = request.form.get('parameterTableChoices')
     choices = json.loads(choices)
+    mode = request.form.get('mode')
 
     if file.filename == '':
         return 'No selected file', 400
 
-    parameterTableOutput = parameter_table_parser(choices)
+    parameterTableOutput = parameter_table_parser(choices, mode)
+    
+    cleaned_df, _ = get_data(mode, parameterTableOutput, file)
 
-    cleaned_df, (student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q, social_credit_score_list, priority_list) = get_data("Qualtrics", parameterTableOutput, file)
-    solution = compute_solution(student_workers_q, x_ijk_q, l_ijk_q, u_ijk_q)
-    print("solution df", solution)
-
-    excel_file_path = 'solution_and_cleaned_data.xlsx'
+    excel_file_path = 'cleaned.xlsx'
     with pd.ExcelWriter(excel_file_path) as writer:
-        solution.to_excel(writer, index=False, sheet_name="output solution")
         cleaned_df.to_excel(writer, index=False, sheet_name="cleaned data")
+
+    return send_file(excel_file_path, as_attachment=True)
+
+
+@app.route('/get_solution', methods=['POST', 'GET'])
+def get_solution():
+    if 'file' not in request.files:
+        return 'No file part', 400
+
+    file = request.files['file']
+    choices = request.form.get('parameterTableChoices')
+    choices = json.loads(choices)
+    mode = request.form.get('mode')
+    print("mode = ", mode)
+
+    if file.filename == '':
+        return 'No selected file', 400
+
+    parameterTableOutput = parameter_table_parser(choices, mode)
+
+    _, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
+    solution = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
+
+    excel_file_path = 'solution.xlsx'
+    with pd.ExcelWriter(excel_file_path) as writer:
+        solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
 
     return send_file(excel_file_path, as_attachment=True)
 
