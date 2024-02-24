@@ -47,13 +47,13 @@ def get_solution():
 
     parameterTableOutput = parameter_table_parser(choices, mode)
 
-    _, (student_workers, x_ijk, l_ijk, u_ijk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
-    solution, analytics_df = compute_solution(student_workers, x_ijk, l_ijk, u_ijk)
+    _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
+    solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
 
     excel_file_path = 'solution.xlsx'
     with pd.ExcelWriter(excel_file_path) as writer:
         solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
-        analytics_df.to_excel(writer, sheet_name="model analytics")
+        analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
     return send_file(excel_file_path, as_attachment=True)
 
 
