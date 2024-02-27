@@ -21,7 +21,7 @@ def get_data(mode, parameterTableOutput, file_path):
         # Now set the lower and upper bound for each shift. 
         i, j, k = x_ijk.shape
         l_jk = np.full((j, k), 2)
-        u_jk = np.full((j, k), 6)
+        u_jk = np.full((j, k), 3)
     
         #Friday 2pm-6pm unavailable so change l_jk and u_jk to 0 for those
         # TODO: Read in lower and upper bounds on number of workers from the front end
