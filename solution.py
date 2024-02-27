@@ -155,43 +155,47 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk):
                         for i in student_workers[:, 0]]) <= u_jk[j, k]
             )
     
-    ## Handle Back-To-Back Shifts ##
-    """
-    for i in Back_To_Back_Workers[:, 0]:
+    # Back-to-back shifts constraints
+    # Back-to-back shifts constraints
+    # Iterate over the workers
+    # Add a constraint for back-to-back shifts
+    for i in range(x_ijk.shape[0]):
+        for j in range(x_ijk.shape[1]):
+            for k in range(x_ijk.shape[2] - 1):  # Iterate until the second-to-last shift
+                if cleaned.iloc[i, 4] == "Back-to-back shifts":  # Check if the worker wants back-to-back shifts
+                    # Enforce assignment to the next shift if assigned to the current shift
+                    if k>0 and k <7:
+                      scheduler_model += (a_ijk[i, j, k+1] >= a_ijk[i, j, k] - a_ijk[i, j, k - 1])
+                      scheduler_model += (a_ijk[i, j, k-1] >= a_ijk[i, j, k] - a_ijk[i, j, k + 1])
+                    else:
+                      scheduler_model += (a_ijk[i, j, k+1] >= a_ijk[i, j, k])
 
-            scheduler_model += (
-                    lpSum(np.to_binary([a_ijk[i, j, :]) & (np.to_binary(a_ij) >> 1) for j in x_ijk.shape[1]]) > 0)
-        
-    """
-    #np.to_binary is not a real function, I am just using it as a placeholder for some function that converts the vector a_ijk[i, j, :] to a binary vector
-    
-    
-    ## Handle Same-Day Shifts ##
-    """for i in Same_Day_Workers[:, 0]:
-                scheduler_model += (
-                        lpSum( for j in x_ijk.shape[1]]) > 0)
-    """
-
-    # Handle Social Credit Scores
-    # Philosophy is to have a minimum average social score on each shift so that
-    # social and reserved student workers get paired together
-    
     ### Calculate Overall Average Social Score ###
-    #overall_average_social_score = np.mean(student_workers[:, 6]) #column 7 --> index 6
-    #print(overall_average_social_score)
+    overall_average_social_score = np.mean(student_workers[:, 6]) #column 7 --> index 6
+    print(overall_average_social_score)
 
     ### Constraints for Average Social Score ###
-    #for j in range(x_ijk.shape[1]):
-    #    for k in range(x_ijk.shape[2]):
-            # Extract social credit scores for workers assigned to the shift
-    #        social_scores = [a_ijk[i, j, k]*student_workers[i, 6] for i in range(x_ijk.shape[0])]
-            #print(social_scores)
-            # Ensure that the average social score is at least overall average - 0.5
-    #        if len(social_scores) > 0:  # Check if there are workers assigned to the shift
-    #            scheduler_model += (
-    #                lpSum(social_scores) / len(social_scores) >= overall_average_social_score - 0.5
-    #            )
+    for j in range(x_ijk.shape[1]):
+      for k in range(x_ijk.shape[2]):
+        # Check if the maximum number of workers on the shift is greater than 0
+        if u_ijk[i, j, k] > 0:
+            # Calculate the total social score for the shift
+            total_social_score = lpSum([student_workers[i, 6] * a_ijk[(i, j, k)] for i in range(x_ijk.shape[0])])
 
+            # Calculate the number of workers assigned to the shift
+            num_assigned_workers = lpSum([a_ijk[(i, j, k)] for i in range(x_ijk.shape[0])])
+
+            # Introduce a new variable for the average social score for the shift
+            average_social_score_shift = LpVariable(name=f"average_social_score_shift_{j}_{k}", lowBound=0)
+
+            # Add a constraint to set the average social score for the shift
+            scheduler_model += average_social_score_shift == total_social_score
+
+            # Ensure that the average social score is at least the desired value
+            scheduler_model += average_social_score_shift >= (overall_average_social_score - 0.5) * num_assigned_workers
+
+    
+    
     scheduler_model.solve()
     scheduler_model.writeLP("mtc_scheduler_model.lp")
     num_j = x_ijk.shape[1]
