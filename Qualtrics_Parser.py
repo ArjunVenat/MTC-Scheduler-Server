@@ -98,14 +98,14 @@ def parse_data(
             for k in range(len(time_columns)):
                 x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns) * j + k])
                 if (priority_list[i] == "Yes" or priority_list[i] == True):
-                    if (x_ijk[i, j, k] == 1):
-                        (x_ijk[i, j, k] = 0.5)
-                    else if (x_ijk[i, j, k] == 4):
-                        (x_ijk[i, j, k] = 2)
-                    else if (x_ijk[i, j, k] == 9):
-                        (x_ijk[i, j, k] = 18)
-                    else:
-                        (x_ijk[i, j, k] = 20000)
+                    if x_ijk[i, j, k] == 1:
+                        x_ijk[i, j, k] = 0.5
+                    elif x_ijk[i, j, k] == 4:
+                        x_ijk[i, j, k] = 2
+                    elif x_ijk[i, j, k] == 9:
+                        x_ijk[i, j, k] = 18
+                    elif x_ijk[i, j, k] == 10000:
+                        x_ijk[i, j, k] = 20000
 
     # Read preference scores into data frame and cut it in half for workers who are prioritized
     print(x_ijk.shape)
