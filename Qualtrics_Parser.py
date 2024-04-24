@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 def clean_data(
+    # DYNAMIC - update time_columns to read in from front end
     input_path, 
     social_credit_score_list,
     priority_list,
@@ -14,7 +15,7 @@ def clean_data(
     # Initial Qualtrics Cleaning
     df = pd.read_excel(input_path, header=1)
 
-    # Update mapping to read in from front end - some is required, other is arbitrary as the survey changes with time, so needs to be dynamic
+    # DYNAMIC - Update mapping to read in from front end - some is required, other is arbitrary as the survey changes with time, so needs to be dynamic
     original_to_new_mapping = {
         "Name": "Name",
         "Select your Position": "Position",
@@ -23,7 +24,7 @@ def clean_data(
         "Which of the following courses do you feel qualified to Tutor?": "Courses",
     }
 
-    # Update time_columns - read in from front end
+    # DYNAMIC - Update time_columns - read in from front end
     for day in days_of_week:
         for time in time_columns:
             original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. Answer as many choices as you can, or we may follow up and ask you to resubmit. - {time} - {day}"
@@ -71,7 +72,7 @@ def clean_data(
 
     return df
 
-# Note that time_columns will now be read in as a specification from the front end
+# DYNAMIC - Note that time_columns will now be read in as a specification from the front end
 def parse_data(
     df,
     social_credit_score_list,
@@ -87,6 +88,7 @@ def parse_data(
     df.iloc[:, 6] = social_credit_score_list 
     df.iloc[:, 7] = ["Yes" if x else "No" for x in priority_list]
 
+    # DYNAMIC - this will depend on if any additional columns are in the cleaned data
     starting_of_preferences = 8 #number of first few columns
 
 
