@@ -69,6 +69,10 @@ def clean_data(
     df.insert(loc=6, column="social_credit_score", value=social_credit_score_list)
     df.insert(loc=7, column="prioritized?", value=["Yes" if x else "No" for x in priority_list])
 
+    # Filter out columns based on "included_list"
+    included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
+    df = df.iloc[:, included_columns]
+
     return df
 
 # DYNAMIC - Note that time_columns will now be read in as a specification from the front end
