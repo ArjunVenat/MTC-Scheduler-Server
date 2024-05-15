@@ -7,7 +7,7 @@ def clean_data(
     social_credit_score_list,
     priority_list,
     original_to_new_mapping,
-    time_columns
+    time_columns,
     days_of_week,
     included_list
     ):

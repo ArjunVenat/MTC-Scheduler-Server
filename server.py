@@ -3,6 +3,7 @@ from flask_cors import CORS
 from solution import *
 from io import BytesIO
 from parameter_table_parser import parameter_table_parser
+from table_data import *
 
 app = Flask(__name__)
 CORS(app)
@@ -57,5 +58,28 @@ def get_solution():
     return send_file(excel_file_path, as_attachment=True)
 
 
+@app.route('/api/populate_table', methods=['POST'])
+def populate_table():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    
+    file = request.files['file']
+    fileType = request.form.get("filetype")
+
+    if file.filename == '':
+        return 'No selected file', 400
+
+    if fileType == "raw":
+        df = pd.read_excel(file, header=1)
+    elif fileType == "clean":
+        df = pd.read_excel(file)
+
+    columns = get_column_names(df, fileType)
+    print(columns)
+    return jsonify({"columns": columns})
+    # except:
+    #     return 'Incorrect File', 401
+
+    
 if __name__ == '__main__':
     app.run(debug=True)
