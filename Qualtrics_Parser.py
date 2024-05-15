@@ -8,7 +8,8 @@ def clean_data(
     priority_list,
     original_to_new_mapping,
     time_columns
-    days_of_week
+    days_of_week,
+    included_list
     ):
 
     # Initial Qualtrics Cleaning
@@ -82,12 +83,11 @@ def parse_data(
 
     #Correct the index column and update the new scores
     df.iloc[:, 0] = range(len(df)) 
-    df.iloc[:, 6] = social_credit_score_list 
-    df.iloc[:, 7] = ["Yes" if x else "No" for x in priority_list]
+    df.insert(len(df.columns), "social_credit_score", social_credit_score_list)
+    df.insert(len(df.columns), "priority", priority_list_str)
 
     # DYNAMIC - this will depend on if any additional columns are in the cleaned data
-    starting_of_preferences = 8 #number of first few columns
-
+    starting_of_preferences = len(df.columns)
 
     student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
     preferences = df.iloc[:, starting_of_preferences:]
