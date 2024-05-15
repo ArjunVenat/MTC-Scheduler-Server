@@ -25,7 +25,7 @@ def get_column_names(qualtrics_data, dataType):
       return filtered_cleaned_data.columns
 
   
-  if type == "raw":
+  if dataType == "raw":
     columns = get_column_names_raw_data(qualtrics_data)
   else:
     columns = get_column_names_cleaned_data(qualtrics_data)
