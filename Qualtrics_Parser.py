@@ -11,9 +11,9 @@ def clean_data(
     days_of_week,
     # included_list
     ):
-
+    print("this")
     # Initial Qualtrics Cleaning
-    df = pd.read_excel(input_path, header=1)
+    df = pd.read_excel(input_path, header=0)
 
     # DYNAMIC - Update mapping to read in from front end - some is required, other is arbitrary as the survey changes with time, so needs to be dynamic
     #original_to_new_mapping = {
@@ -23,21 +23,35 @@ def clean_data(
         #"If you plan to work more than one shift, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
         #"Which of the following courses do you feel qualified to Tutor?": "Courses",
     #}
-        
+    
+    # for newMapping in original_to_new_mapping:
+    #     colToMap = [col for col in df.columns if (newMapping.lower() in str(col).lower())]
+    #     for column in colToMap:
+    #         newName = original_to_new_mapping[newMapping]
+    #         df.rename(columns={column: newName}, inplace=True)
+    #     df.rename(columns=original_to_new_mapping, inplace=True)
+
+    print(df.columns)                  
+    please_columns = [col for col in df.columns if str(col).startswith("Please")]
+    # Iterate through each column
     for day in days_of_week:
         for time in time_columns:
             original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. Answer as many choices as you can, or we may follow up and ask you to resubmit. - {time} - {day}"
             new_column_name = f"{time} {day}"
             original_to_new_mapping[original_column_name] = new_column_name
-
+    
+    print(df.columns)
+    print(original_to_new_mapping)
     df.rename(columns=original_to_new_mapping, inplace=True)
+    print(df.columns)
+    print("See here ^")
 
     missing_columns = [col for col in original_to_new_mapping.values() if col not in df.columns]
 
     if missing_columns:
         print(f"Missing columns after renaming: {missing_columns}")
 
-    df = df[list(original_to_new_mapping.values())]
+    #df = df[list(original_to_new_mapping.values())]
 
     all_time_columns = [f"{i} {j}" for j in days_of_week for i in time_columns]
 
@@ -126,7 +140,27 @@ if __name__ == "__main__":
 
     social_credit_score_list = [2] * 49 #change this as you wish but we have 49 MTC workers and by default I have them getting all 3's
     priority_list = [True] * 49
-    cleaned_df = clean_data(input_path, social_credit_score_list, priority_list)
+    original_to_new_mapping = {
+        "Name": "Name",
+        "Select your Position": "Position",
+        "PLA's and Graders work a minimum of 1 hour a week in the MTC, while TA's and GLA's work 2 hours per week in the MTC. If you'd like to work additional hours, please indicate the maximum number of hours you would like to work in a week, otherwise leave this field blank.": "Max-hours",
+        "If you plan to work more than one shift, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
+        "Which of the following courses do you feel qualified to Tutor?": "Courses",
+    }
+    time_columns=[
+
+        "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
+
+        "3-4 PM", "4-5 PM", "5-6 PM"],
+
+    days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    
+    cleaned_df = clean_data(input_path, 
+    social_credit_score_list,
+    priority_list,
+    original_to_new_mapping,
+    time_columns,
+    days_of_week)
     cleaned_df.to_excel(cleaned_input_path, index=False)
 
     cleaned_df = pd.read_excel(cleaned_input_path)

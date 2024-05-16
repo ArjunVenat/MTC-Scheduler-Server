@@ -38,6 +38,7 @@ def clean_raw():
 
     file = request.files['file']
     mapping = request.form.get('mapping')
+    
     mapping = json.loads(mapping)
 
     if file.filename == '':
@@ -52,10 +53,12 @@ def clean_raw():
         "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
         "3-4 PM", "4-5 PM", "5-6 PM"],
     days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    priority_list=["No"]*len(tempDF.columns))
+    priority_list=["No"]*len(tempDF))
     
+    print("Cleaned DF:")
     print(cleanedData)
-
+    return cleanedData.to_json(orient = "records")
+    #return jsonify(cleanedData.to_dict())
 
 @app.route('/api/get_solution', methods=['POST', 'GET'])
 def get_solution():
