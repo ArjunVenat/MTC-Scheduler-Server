@@ -9,7 +9,7 @@ def clean_data(
     original_to_new_mapping,
     time_columns,
     days_of_week,
-    included_list
+    # included_list
     ):
 
     # Initial Qualtrics Cleaning
@@ -70,8 +70,8 @@ def clean_data(
     df.insert(loc=7, column="prioritized?", value=["Yes" if x else "No" for x in priority_list])
 
     # Filter out columns based on "included_list"
-    included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
-    df = df.iloc[:, included_columns]
+    # included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
+    # df = df.iloc[:, included_columns]
 
     return df
 
@@ -88,7 +88,7 @@ def parse_data(
     #Correct the index column and update the new scores
     df.iloc[:, 0] = range(len(df)) 
     df.insert(len(df.columns), "social_credit_score", social_credit_score_list)
-    df.insert(len(df.columns), "priority", priority_list_str)
+    df.insert(len(df.columns), "priority", priority_list)
 
     # DYNAMIC - this will depend on if any additional columns are in the cleaned data
     starting_of_preferences = len(df.columns)
