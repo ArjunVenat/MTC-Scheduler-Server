@@ -85,10 +85,11 @@ def clean_data(
     # Add an "Index" column starting from 0
 
     df.insert(0, "Index", range(len(df)))
-
+    
     # Insert social_credit_score column into df
-    df.insert(loc=6, column="social_credit_score", value=social_credit_score_list)
-    df.insert(loc=7, column="prioritized?", value=["No" for x in priority_list])
+    b2bindex = df.columns.get_loc('Back-to-Back')
+    df.insert(loc=b2bindex+1, column="social_credit_score", value=social_credit_score_list)
+    df.insert(loc=b2bindex+2, column="prioritized?", value=["No" for x in priority_list])
 
     # Filter out columns based on "included_list"
     # included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
@@ -106,12 +107,12 @@ def parse_data(
     ):
 
     #Correct the index column and update the new scores
-    df.iloc[:, 0] = range(len(df)) 
-    df.insert(len(df.columns), "social_credit_score", social_credit_score_list)
-    df.insert(len(df.columns), "priority", priority_list)
+    df.iloc[:, 0] = range(len(df))
+    b2bindex = df.columns.get_loc('Back-to-Back')
+    df["social_credit_score"] = social_credit_score_list
+    df["prioritized?"] = ["Yes" if x else "No" for x in priority_list]
 
-    # DYNAMIC - this will depend on if any additional columns are in the cleaned data
-    starting_of_preferences = len(df.columns)
+    starting_of_preferences = b2bindex + 3
 
     student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
     preferences = df.iloc[:, starting_of_preferences:]
