@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import re
 
 def clean_data(
     # DYNAMIC - update time_columns to read in from front end
@@ -7,8 +8,6 @@ def clean_data(
     social_credit_score_list,
     priority_list,
     original_to_new_mapping,
-    time_columns,
-    days_of_week,
     # included_list
     ):
     print("this")
@@ -31,18 +30,30 @@ def clean_data(
     #         df.rename(columns={column: newName}, inplace=True)
     #     df.rename(columns=original_to_new_mapping, inplace=True)
 
-    print(df.columns)                  
-    please_columns = [col for col in df.columns if str(col).startswith("Please")]
-    # Iterate through each column
-    for day in days_of_week:
-        for time in time_columns:
-            original_column_name = f"Please indicate your availability to work at the MTC. Leave an X anytime you are unavailable, and any numbers 1-3 when you are available, where a 1 is a top preference, and a 3 is a lowest preference. Note the MTC closes at 2PM on Fridays, so leave the prefilled X's. Answer as many choices as you can, or we may follow up and ask you to resubmit. - {time} - {day}"
-            new_column_name = f"{time} {day}"
-            original_to_new_mapping[original_column_name] = new_column_name
+    # print(df.columns)
+    pattern = r'^(.+) - (\d{1,2}-\d{1,2} [AP]M) - ([A-Za-z]+)$'
+    matching_columns = []
+    for col in df.columns:
+        match = re.match(pattern, col)
+        if match:
+            print(match)
+            renamed_col = match.group(2) + " " + match.group(3)
+            matching_columns.append((col, renamed_col))
     
+    for old_col, new_col in matching_columns:
+        df.rename(columns={old_col: new_col}, inplace=True)
+        df[new_col] = df[new_col].apply(lambda x: x**2 if (x > 0) else 10000)
+
     print(df.columns)
     print(original_to_new_mapping)
     df.rename(columns=original_to_new_mapping, inplace=True)
+    columns_to_drop = ['Start Date', 'End Date', 'Response Type', 'IP Address',
+                     'Progress', 'Duration (in seconds)', 'Finished', 'Recorded Date',
+                     'Response ID', 'Recipient Last Name', 'Recipient First Name',
+                     'Recipient Email', 'External Data Reference', 'Location Latitude',
+                     'Location Longitude', 'Distribution Channel', 'User Language', "Exclude"]
+    
+    df = df.drop(columns=columns_to_drop)
     print(df.columns)
     print("See here ^")
 
@@ -52,11 +63,6 @@ def clean_data(
         print(f"Missing columns after renaming: {missing_columns}")
 
     #df = df[list(original_to_new_mapping.values())]
-
-    all_time_columns = [f"{i} {j}" for j in days_of_week for i in time_columns]
-
-    for column in all_time_columns:
-        df[column] = df[column].apply(lambda x: x**2 if (x > 0) else 10000)
 
 
     def update_max_hours(row):
@@ -79,9 +85,10 @@ def clean_data(
     # Add an "Index" column starting from 0
 
     df.insert(0, "Index", range(len(df)))
+
     # Insert social_credit_score column into df
     df.insert(loc=6, column="social_credit_score", value=social_credit_score_list)
-    df.insert(loc=7, column="prioritized?", value=["Yes" if x else "No" for x in priority_list])
+    df.insert(loc=7, column="prioritized?", value=["No" for x in priority_list])
 
     # Filter out columns based on "included_list"
     # included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
@@ -95,7 +102,6 @@ def parse_data(
     social_credit_score_list,
     priority_list,
     time_columns,
-    original_to_new_mapping,
     days_of_week
     ):
 

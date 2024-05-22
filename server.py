@@ -43,26 +43,10 @@ def clean_raw():
     
     mapping = request.form.get('mapping')
     mapping = json.loads(mapping)
-
-    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    time_columns = ["10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM","3-4 PM", "4-5 PM", "5-6 PM"]
-
-    if request.form.get('timeColumns'):
-        time_columns = request.form.get('timeColumns')
-    
-    if request.form.get('days'):
-        days_of_week = request.form.get('days')
-
-    print(mapping)
     
     numWorkers = len(pd.read_excel(file, header=1))
+    cleanedData = clean_data(file, social_credit_score_list=[3]*numWorkers, priority_list=["No"]*numWorkers, original_to_new_mapping=mapping)
     
-    cleanedData = clean_data(file, social_credit_score_list=[3]*numWorkers, original_to_new_mapping=mapping, 
-                             time_columns=time_columns, days_of_week=days_of_week, priority_list=["No"]*numWorkers)
-    
-    print("Cleaned DF:")
-    print(cleanedData)
-
     excel_file_path = 'cleaned.xlsx'
     with pd.ExcelWriter(excel_file_path) as writer:
         cleanedData.to_excel(writer, index=False, sheet_name="cleaned data")
