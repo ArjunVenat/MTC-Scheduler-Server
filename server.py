@@ -31,60 +31,98 @@ CORS(app)
 
 #     return send_file(excel_file_path, as_attachment=True)
 
-@app.route('/api/clean_raw', methods=['POST', 'GET'])
+@app.route('/api/clean_raw', methods=['POST'])
 def clean_raw():
     if 'file' not in request.files:
         return 'No file part', 401
-
-    file = request.files['file']
-    mapping = request.form.get('mapping')
     
-    mapping = json.loads(mapping)
+    file = request.files['file']
 
     if file.filename == '':
         return 'No selected file', 402
     
+    mapping = request.form.get('mapping')
+    mapping = json.loads(mapping)
+
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    time_columns = ["10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM","3-4 PM", "4-5 PM", "5-6 PM"]
+
+    if request.form.get('timeColumns'):
+        time_columns = request.form.get('timeColumns')
+    
+    if request.form.get('days'):
+        days_of_week = request.form.get('days')
+
     print(mapping)
     
-    tempDF = pd.read_excel(file, header=1)
-    print(len(tempDF))
+    numWorkers = len(pd.read_excel(file, header=1))
     
-    cleanedData = clean_data(file, social_credit_score_list=[3]*len(tempDF), original_to_new_mapping=mapping, time_columns=[
-        "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
-        "3-4 PM", "4-5 PM", "5-6 PM"],
-    days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    priority_list=["No"]*len(tempDF))
+    cleanedData = clean_data(file, social_credit_score_list=[3]*numWorkers, original_to_new_mapping=mapping, 
+                             time_columns=time_columns, days_of_week=days_of_week, priority_list=["No"]*numWorkers)
     
     print("Cleaned DF:")
     print(cleanedData)
-    return cleanedData.to_json(orient = "records")
-    #return jsonify(cleanedData.to_dict())
 
-@app.route('/api/get_solution', methods=['POST', 'GET'])
+    excel_file_path = 'cleaned.xlsx'
+    with pd.ExcelWriter(excel_file_path) as writer:
+        cleanedData.to_excel(writer, index=False, sheet_name="cleaned data")
+    
+    return send_file(excel_file_path, as_attachment=True)
+
+# @app.route('/api/get_solution', methods=['POST', 'GET'])
+# def get_solution():
+#     if 'file' not in request.files:
+#         return 'No file part', 400
+
+#     file = request.files['file']
+#     choices = request.form.get('parameterTableChoices')
+#     choices = json.loads(choices)
+#     mode = request.form.get('mode')
+#     print("mode = ", mode)
+
+#     if file.filename == '':
+#         return 'No selected file', 400
+
+#     parameterTableOutput = parameter_table_parser(choices, mode)
+
+#     _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
+#     solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
+
+#     excel_file_path = 'solution.xlsx'
+#     with pd.ExcelWriter(excel_file_path) as writer:
+#         solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
+#         analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
+#     return send_file(excel_file_path, as_attachment=True)
+@app.route('/api/get_solution', methods=['POST'])
 def get_solution():
     if 'file' not in request.files:
         return 'No file part', 400
 
     file = request.files['file']
-    choices = request.form.get('parameterTableChoices')
-    choices = json.loads(choices)
-    mode = request.form.get('mode')
-    print("mode = ", mode)
+    print(file.content_type)
+    hoursTable = json.loads(request.form.get('hoursTable'))
+    daySplice = request.form.get('daySplice')
+    timeSplice = request.form.get('timeSplice')
+    print(hoursTable)
+    print(daySplice)
+    print(timeSplice)
 
-    if file.filename == '':
-        return 'No selected file', 400
+    # mode = request.form.get('mode')
+    # print("mode = ", mode)
 
-    parameterTableOutput = parameter_table_parser(choices, mode)
+    # if file.filename == '':
+    #     return 'No selected file', 400
 
-    _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
-    solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
+    # parameterTableOutput = parameter_table_parser(choices, mode)
 
-    excel_file_path = 'solution.xlsx'
-    with pd.ExcelWriter(excel_file_path) as writer:
-        solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
-        analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
-    return send_file(excel_file_path, as_attachment=True)
+    # _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
+    # solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
 
+    # excel_file_path = 'solution.xlsx'
+    # with pd.ExcelWriter(excel_file_path) as writer:
+    #     solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
+    #     analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
+    # return send_file(excel_file_path, as_attachment=True)
 
 @app.route('/api/populate_table', methods=['POST'])
 def populate_table():

@@ -13,7 +13,7 @@ def clean_data(
     ):
     print("this")
     # Initial Qualtrics Cleaning
-    df = pd.read_excel(input_path, header=0)
+    df = pd.read_excel(input_path, header=1)
 
     # DYNAMIC - Update mapping to read in from front end - some is required, other is arbitrary as the survey changes with time, so needs to be dynamic
     #original_to_new_mapping = {

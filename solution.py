@@ -196,7 +196,7 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
     for j in range(x_ijk.shape[1]):
       for k in range(x_ijk.shape[2]):
         # Check if the maximum number of workers on the shift is greater than 0
-        if u_ijk[i, j, k] > 0:
+        if u_jk[j, k] > 0:
             # Calculate the total social score for the shift
             # DYNAMIC - social score column 6
             total_social_score = lpSum([student_workers[i, social_credit_score_column_index] * a_ijk[(i, j, k)] for i in range(x_ijk.shape[0])])
