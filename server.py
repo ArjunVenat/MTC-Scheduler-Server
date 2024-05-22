@@ -85,20 +85,27 @@ def get_solution():
         return 'No file part', 400
 
     file = request.files['file']
-    print(file.content_type)
     parameterTableOutput = request.form.get('parameterTableOutput')
     hoursTable = request.form.get('hoursTable')
-    toParse = json.loads(parameterTableOutput)
+    dayRange = request.form.get('dayRange')
+    timeRange = request.form.get('timeRange')
+    print(dayRange, timeRange)
+    parameterTableOutputJSON = json.loads(parameterTableOutput)
     hoursTableJSON = json.loads(hoursTable)
+    dayRangeJSON = json.loads(dayRange)
+    timeRangeJSON = json.loads(timeRange)
+    print(dayRangeJSON, timeRangeJSON)
 
-    print(toParse)
+    
+    print(parameterTableOutputJSON)
     print(hoursTableJSON)
 
-    social_credit_score_list = [row.get("creditScore") for row in toParse]
-    priority_list = [row.get("prioritize") for row in toParse]
+    social_credit_score_list = [row.get("creditScore") for row in parameterTableOutputJSON]
+    priority_list = [row.get("prioritize") for row in parameterTableOutputJSON]
 
     print(social_credit_score_list)
     print(priority_list)
+
 
     return "lol", 200
 

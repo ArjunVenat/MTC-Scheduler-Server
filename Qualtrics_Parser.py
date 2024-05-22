@@ -87,9 +87,17 @@ def clean_data(
     df.insert(0, "Index", range(len(df)))
     
     # Insert social_credit_score column into df
-    b2bindex = df.columns.get_loc('Back-to-Back')
-    df.insert(loc=b2bindex+1, column="social_credit_score", value=social_credit_score_list)
-    df.insert(loc=b2bindex+2, column="prioritized?", value=["No" for x in priority_list])
+    coursesIndex = df.columns.get_loc('Courses')
+    df.insert(loc=coursesIndex+1, column="social_credit_score", value=social_credit_score_list)
+    df.insert(loc=coursesIndex+2, column="prioritized?", value=["No" for x in priority_list])
+
+    firstFewCols = ["Index", "Name", "Position", "Max-hours", "Back-to-Back", "Courses", "social_credit_score", "prioritized?"]
+    remainingCols = [col for col in df.columns if col not in firstFewCols]
+    newOrder = firstFewCols + remainingCols
+    df = df[newOrder]
+
+    #Order the time columns
+    
 
     # Filter out columns based on "included_list"
     # included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
@@ -108,11 +116,10 @@ def parse_data(
 
     #Correct the index column and update the new scores
     df.iloc[:, 0] = range(len(df))
-    b2bindex = df.columns.get_loc('Back-to-Back')
     df["social_credit_score"] = social_credit_score_list
     df["prioritized?"] = ["Yes" if x else "No" for x in priority_list]
 
-    starting_of_preferences = b2bindex + 3
+    starting_of_preferences = df.columns.get_loc('prioritized?') + 3
 
     student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
     preferences = df.iloc[:, starting_of_preferences:]
