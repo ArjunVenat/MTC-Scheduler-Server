@@ -31,29 +31,6 @@ CORS(app)
 
 #     return send_file(excel_file_path, as_attachment=True)
 
-@app.route('/api/clean_raw', methods=['POST'])
-def clean_raw():
-    if 'file' not in request.files:
-        return 'No file part', 401
-    
-    file = request.files['file']
-
-    if file.filename == '':
-        return 'No selected file', 402
-    
-    mapping = request.form.get('mapping')
-    mapping = json.loads(mapping)
-    
-    numWorkers = len(pd.read_excel(file, header=1))
-
-    cleanedData = clean_data(file, social_credit_score_list=[3]*numWorkers, priority_list=["No"]*numWorkers, original_to_new_mapping=mapping)
-    
-    excel_file_path = 'cleaned.xlsx'
-    with pd.ExcelWriter(excel_file_path) as writer:
-        cleanedData.to_excel(writer, index=False, sheet_name="cleaned data")
-    
-    return send_file(excel_file_path, as_attachment=True)
-
 # @app.route('/api/get_solution', methods=['POST', 'GET'])
 # def get_solution():
 #     if 'file' not in request.files:
@@ -79,6 +56,54 @@ def clean_raw():
 #         analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
 #     return send_file(excel_file_path, as_attachment=True)
 
+@app.route('/api/clean_raw', methods=['POST'])
+def clean_raw():
+    if 'file' not in request.files:
+        return 'No file part', 401
+    
+    file = request.files['file']
+
+    if file.filename == '':
+        return 'No selected file', 402
+
+    mapping = request.form.get('mapping')
+    mapping = json.loads(mapping)
+    parsedMapping = {}
+    for row in mapping:
+        parsedMapping[row["questionText"]] = row["desiredCol"]
+
+    numWorkers = len(pd.read_excel(file, header=1))
+    cleanedData = clean_data(file, social_credit_score_list=[3]*numWorkers, priority_list=["No"]*numWorkers, header=1, original_to_new_mapping=parsedMapping)
+    
+    excel_file_path = 'cleaned.xlsx'
+    with pd.ExcelWriter(excel_file_path) as writer:
+        cleanedData.to_excel(writer, index=False, sheet_name="cleaned data")
+    
+    return send_file(excel_file_path, as_attachment=True)
+
+
+
+@app.route('/api/reclean', methods=['POST'])
+def reclean():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    file = request.files['file']
+    parameterTableOutput = request.form.get('parameterTableOutput')
+    parameterTableOutputJSON = json.loads(parameterTableOutput)
+
+    social_credit_score_list = [row.get("creditScore") for row in parameterTableOutputJSON]
+    priority_list = [row.get("prioritize") for row in parameterTableOutputJSON]
+    print(social_credit_score_list)
+    print(priority_list)
+    cleanedData = clean_data(file, social_credit_score_list=social_credit_score_list, priority_list=priority_list, header=0, original_to_new_mapping={})
+    
+    excel_file_path = 'cleaned.xlsx'
+    with pd.ExcelWriter(excel_file_path) as writer:
+        cleanedData.to_excel(writer, index=False, sheet_name="cleaned data")
+    
+    return send_file(excel_file_path, as_attachment=True)
+
+
 @app.route('/api/get_solution', methods=['POST'])
 def get_solution():
     if 'file' not in request.files:
@@ -89,20 +114,17 @@ def get_solution():
     hoursTable = request.form.get('hoursTable')
     dayRange = request.form.get('dayRange')
     timeRange = request.form.get('timeRange')
-    print(dayRange, timeRange)
     parameterTableOutputJSON = json.loads(parameterTableOutput)
     hoursTableJSON = json.loads(hoursTable)
     dayRangeJSON = json.loads(dayRange)
     timeRangeJSON = json.loads(timeRange)
-    print(dayRangeJSON, timeRangeJSON)
-
-    
-    print(parameterTableOutputJSON)
-    print(hoursTableJSON)
 
     social_credit_score_list = [row.get("creditScore") for row in parameterTableOutputJSON]
     priority_list = [row.get("prioritize") for row in parameterTableOutputJSON]
 
+    print(dayRangeJSON, timeRangeJSON)
+    print(parameterTableOutputJSON)
+    print(hoursTableJSON)
     print(social_credit_score_list)
     print(priority_list)
 

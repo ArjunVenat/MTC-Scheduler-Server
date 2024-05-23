@@ -8,11 +8,12 @@ def clean_data(
     social_credit_score_list,
     priority_list,
     original_to_new_mapping,
+    header
     # included_list
     ):
     print("this")
     # Initial Qualtrics Cleaning
-    df = pd.read_excel(input_path, header=1)
+    df = pd.read_excel(input_path, header=header)
 
     # DYNAMIC - Update mapping to read in from front end - some is required, other is arbitrary as the survey changes with time, so needs to be dynamic
     #original_to_new_mapping = {
@@ -30,13 +31,12 @@ def clean_data(
     #         df.rename(columns={column: newName}, inplace=True)
     #     df.rename(columns=original_to_new_mapping, inplace=True)
 
-    # print(df.columns)
+    print(df.columns)
     pattern = r'^(.+) - (\d{1,2}-\d{1,2} [AP]M) - ([A-Za-z]+)$'
     matching_columns = []
     for col in df.columns:
         match = re.match(pattern, col)
         if match:
-            print(match)
             renamed_col = match.group(2) + " " + match.group(3)
             matching_columns.append((col, renamed_col))
     
@@ -53,7 +53,7 @@ def clean_data(
                      'Recipient Email', 'External Data Reference', 'Location Latitude',
                      'Location Longitude', 'Distribution Channel', 'User Language', "Exclude"]
     
-    df = df.drop(columns=columns_to_drop)
+    df = df.drop(columns=columns_to_drop, errors="ignore")
     print(df.columns)
     print("See here ^")
 
@@ -83,25 +83,36 @@ def clean_data(
     df["Back-to-Back"] = df.apply(update_back_to_back, axis=1)
 
     # Add an "Index" column starting from 0
-
-    df.insert(0, "Index", range(len(df)))
+    if ("Index" not in df.columns):
+        df.insert(0, "Index", range(len(df)))
+    else:
+        df["Index"] = range(len(df))
     
-    # Insert social_credit_score column into df
+    # Insert social_credit_score column into df (WE MAKE IT BETTER LATER)
     coursesIndex = df.columns.get_loc('Courses')
-    df.insert(loc=coursesIndex+1, column="social_credit_score", value=social_credit_score_list)
-    df.insert(loc=coursesIndex+2, column="prioritized?", value=["No" for x in priority_list])
-
-    firstFewCols = ["Index", "Name", "Position", "Max-hours", "Back-to-Back", "Courses", "social_credit_score", "prioritized?"]
-    remainingCols = [col for col in df.columns if col not in firstFewCols]
-    newOrder = firstFewCols + remainingCols
-    df = df[newOrder]
-
-    #Order the time columns
+    if ("social_credit_score" not in df.columns):
+        df.insert(loc=coursesIndex+1, column="social_credit_score", value=social_credit_score_list)
+    else:
+        df["social_credit_score"] = social_credit_score_list
     
+    if ("prioritized?" not in df.columns):
+        df.insert(loc=coursesIndex+2, column="prioritized?", value=priority_list)
+    else:
+        df["prioritized?"] = ["Yes" if (x or x.strip.capitalize =="Yes") else "No" for x in priority_list]
 
-    # Filter out columns based on "included_list"
-    # included_columns = filter(lambda col: included_list[col], range(len(df.columns)))
-    # df = df.iloc[:, included_columns]
+    
+    firstFewCols = ["Index", "Name", "Position", "Max-hours", "Back-to-Back", "Courses", "social_credit_score", "prioritized?"]
+    #Order the time columns
+    remainingCols = [col for col in df.columns if col not in firstFewCols]
+    time_columns = ["8-9 AM", "9-10 AM", "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM", "3-4 PM", "4-5 PM", "5-6 PM", "6-7 PM", "7-8 PM"]
+    days_of_week = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+    timeDay = [f"{i} {j}" for j in days_of_week for i in time_columns]
+    sortKey = {timeDay[i]: i for i in range(len(timeDay))}
+    remainingCols.sort(key=lambda x: sortKey[x])
+    newOrder = firstFewCols + remainingCols
+
+    df = df[newOrder]
 
     return df
 
@@ -117,20 +128,23 @@ def parse_data(
     #Correct the index column and update the new scores
     df.iloc[:, 0] = range(len(df))
     df["social_credit_score"] = social_credit_score_list
-    df["prioritized?"] = ["Yes" if x else "No" for x in priority_list]
+    df["prioritized?"] = ["Yes" if (x or x.strip.capitalize =="Yes") else "No" for x in priority_list]
 
-    starting_of_preferences = df.columns.get_loc('prioritized?') + 3
+    starting_of_preferences = df.columns.get_loc('prioritized?') + 1
 
-    student_workers = df.iloc[:, :starting_of_preferences].to_numpy()
+    student_workers = df.iloc[:, :starting_of_preferences].to_numpy() # or try below
+    # firstFewCols = ["Index", "Name", "Position", "Max-hours", "Back-to-Back", "Courses", "social_credit_score", "prioritized?"]
+    # student_workers = df[firstFewCols].to_numpy()
     preferences = df.iloc[:, starting_of_preferences:]
 
     x_ijk = np.zeros((len(df), len(days_of_week), len(time_columns)))
+    # See if len(days_of_week) * len(time_columns) matches len(preferences.columns)
 
     for i in range(len(df)):
         for j in range(len(days_of_week)):
             for k in range(len(time_columns)):
                 x_ijk[i, j, k] = int(preferences.iloc[i, len(time_columns) * j + k])
-                if (priority_list[i] == "Yes" or priority_list[i] == True):
+                if (priority_list[i] == "Yes" or priority_list[i]):
                     if x_ijk[i, j, k] == 1:
                         x_ijk[i, j, k] = 0.5
                     elif x_ijk[i, j, k] == 4:
