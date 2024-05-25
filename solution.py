@@ -5,7 +5,7 @@ from Qualtrics_Parser import *
 from pulp import *
 #from gurobipy import *
 
-def get_data(mode, parameterTableOutput, file_path, min_workers_list, max_workers_list):
+def get_data(mode, parameterTableOutput, file_path, l_jk, u_jk, time_columns, days_of_week):
     if (mode == "Qualtrics"):
         # If raw Qualtrics input, we have the additional step of cleaning the data
 
@@ -16,7 +16,7 @@ def get_data(mode, parameterTableOutput, file_path, min_workers_list, max_worker
         cleaned = clean_data(input_path=file_path, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
 
         # Pass in the cleaned dataframe as well as, for consistency, the social_credit_score_list and priority_list        
-        student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
+        student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list, time_columns=time_columns, days_of_week=days_of_week)
 
         # Now set the lower and upper bound for each shift. 
         # DYNAMIC - read in min and max workers from front end
@@ -29,9 +29,6 @@ def get_data(mode, parameterTableOutput, file_path, min_workers_list, max_worker
         # remove these lines here
         #l_jk[4, 4:] = 0
         #u_jk[4, 4:] = 0
-
-        l_jk = min_workers_list
-        u_jk = max_workers_list
         
         return cleaned, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list)
     
@@ -41,24 +38,11 @@ def get_data(mode, parameterTableOutput, file_path, min_workers_list, max_worker
         social_credit_score_list, priority_list = parameterTableOutput
 
         cleaned = pd.read_excel(file_path)
-        student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list)
-
-        # TODO review code here since it might overwrite what we have above for the 2-3 workers per shift
-        #i, j, k = x_ijk.shape
-        #l_jk = np.full((j, k), 2)
-        #u_jk = np.full((j, k), 6)
-    
-        #Friday 2pm-6pm unavailable so change l_jk and u_jk to 0 for those
-        # TODO: Read in lower and upper bounds on number of workers from the front end
-        #l_jk[4, 4:] = 0
-        #u_jk[4, 4:] = 0
-
-        l_jk = min_workers_list
-        u_jk = max_workers_list
+        student_workers, x_ijk = parse_data(cleaned, social_credit_score_list=social_credit_score_list, priority_list=priority_list, time_columns=time_columns, days_of_week=days_of_week)
         
         return cleaned, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list)
     
-def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_week, included_columns):
+def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_week):
     ## student_workers is an NumPy Array with shape (n, 5), where n is the number of student workers
     # column 1 is the index in the table corresponding to that worker: int in range [0, n)
     # column 2 is the name of the worker: str
@@ -87,7 +71,11 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
 
     # DYNAMIC - these are hard coded so the Qualtrics survey can't be updated for the strings
     # "PLA", "TA" and "Grader/ Tutor"
-    position_column_index = np.where(student_workers[0] == "Position")[0][0]
+    
+    position_column_index = 2
+    max_hours_column_index = 3
+    social_credit_score_column_index = 6
+
 
     # Filter data based on position
     PLAs = student_workers[np.where(student_workers[:, position_column_index] == "PLA")]
@@ -127,7 +115,6 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
                     for k in range(x_ijk.shape[2])]) >= 1 
             )
 
-    max_hours_column_index = np.where(student_workers[0] == "Max-hours")[0][0]
 
     for i in np.vstack((PLAs, Graders))[:, 0]:
         scheduler_model += (
@@ -136,7 +123,7 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
                     for k in range(x_ijk.shape[2])]) <= student_workers[i, max_hours_column_index]
                 )
 
-    ## GLAs and TAs work two shifts minimum ##
+    ## TAs work two shifts minimum ##
 
     for i in TAs[:, 0]:
         scheduler_model += (
@@ -177,7 +164,7 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
     for i in range(x_ijk.shape[0]):
         for j in range(x_ijk.shape[1]):
             for k in range(x_ijk.shape[2] - 1):  # Iterate until the second-to-last shift
-                if cleaned.iloc[i, 4] == "Back-to-back shifts":  # Check if the worker wants back-to-back shifts
+                if student_workers[i, 4] == "Back-to-back shifts":  # Check if the worker wants back-to-back shifts
                     # Enforce assignment to the next shift if assigned to the current shift
                     if k>0 and k <x_ijk.shape[2] - 1:
                       scheduler_model += (a_ijk[i, j, k+1] >= a_ijk[i, j, k] - a_ijk[i, j, k - 1])
@@ -186,7 +173,6 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
                       scheduler_model += (a_ijk[i, j, k+1] >= a_ijk[i, j, k])
 
     ### Calculate Overall Average Social Score ###
-    social_credit_score_column_index = np.where(student_workers[0] == "social_credit_score")[0][0]
 
     # DYNAMIC - read from the column "social_credit_score" for overall average social score
     overall_average_social_score = np.mean(student_workers[:, social_credit_score_column_index])
@@ -216,7 +202,7 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
     
     
     scheduler_model.solve()
-    scheduler_model.writeLP("mtc_scheduler_model.lp")
+    # scheduler_model.writeLP("mtc_scheduler_model.lp")
     num_j = x_ijk.shape[1]
     num_k = x_ijk.shape[2]
     result_array = [[[] for _ in range(num_k)] for _ in range(num_j)]
@@ -229,8 +215,7 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
     #days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     
     for v in scheduler_model.variables():
-        #print(v)
-        if v.varValue is not None and v.varValue > 1e-6:
+        if v.varValue is not None and "(" in v.name and v.varValue > 1e-6:
             i, j, k = varsKey[v.name]
             weight = x_ijk[i, j, k]
             model_analytics[i].append(f"{days_of_week[j]} {time_columns[k]} shift with weight: {x_ijk[i, j, k]}")
@@ -241,8 +226,8 @@ def compute_solution(student_workers, x_ijk, l_jk, u_jk, time_columns, days_of_w
     result_array_transposed = list(map(list, zip(*result_array)))
 
     # DYNAMIC - may have more rows coming soon from front end or an updated survey in future years
-    #student_workers_df = pd.DataFrame(student_workers, columns=['Index', 'Name', 'Position', 'Max-hours', 'Back-to-Back', 'Courses', 'social_credit_Score', 'priority?'])
-    student_workers_df = pd.DataFrame(student_workers, columns=included_columns)
+    student_workers_df = pd.DataFrame(student_workers, columns=['Index', 'Name', 'Position', 'Max-hours', 'Back-to-Back', 'Courses', 'social_credit_Score', 'priority?'])
+    # student_workers_df = pd.DataFrame(student_workers, columns=included_columns)
 
 
     # Create a DataFrame with days of the week as index and time columns as columns

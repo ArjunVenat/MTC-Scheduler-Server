@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from solution import *
 from io import BytesIO
-from parameter_table_parser import parameter_table_parser
+from frontend_parameter_parsers import *
 from table_data import *
 
 app = Flask(__name__)
@@ -66,8 +66,7 @@ def clean_raw():
     if file.filename == '':
         return 'No selected file', 402
 
-    mapping = request.form.get('mapping')
-    mapping = json.loads(mapping)
+    mapping = json.loads(request.form.get('mapping'))
     parsedMapping = {}
     for row in mapping:
         parsedMapping[row["questionText"]] = row["desiredCol"]
@@ -127,9 +126,17 @@ def get_solution():
     print(hoursTableJSON)
     print(social_credit_score_list)
     print(priority_list)
-
-
-    return "lol", 200
+    
+    dayRange, timeRange, indices = fix_day_time(dayRange=dayRangeJSON, timeRange=timeRangeJSON)
+    l_jk, u_jk = hours_table_parser(hoursTable=hoursTableJSON, dayRange=dayRange, timeRange=timeRange, indices=indices)
+    cleaned, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data("Cleaned", parameterTableOutput=(social_credit_score_list, priority_list), file_path=file, l_jk=l_jk, u_jk=u_jk, time_columns=timeRange, days_of_week=dayRange)
+    df, analytics_df = compute_solution(student_workers=student_workers, x_ijk=x_ijk, l_jk=l_jk, u_jk=u_jk, days_of_week=dayRange, time_columns=timeRange)
+    
+    excel_file_path = 'solution.xlsx'
+    with pd.ExcelWriter(excel_file_path) as writer:
+        df.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
+        analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
+    return send_file(excel_file_path, as_attachment=True)
 
     # hoursTable = json.loads(request.form.get('hoursTable'))
     # daySplice = request.form.get('daySplice')

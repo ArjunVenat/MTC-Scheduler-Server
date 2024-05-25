@@ -98,7 +98,7 @@ def clean_data(
     if ("prioritized?" not in df.columns):
         df.insert(loc=coursesIndex+2, column="prioritized?", value=priority_list)
     else:
-        df["prioritized?"] = ["Yes" if (x or x.strip.capitalize =="Yes") else "No" for x in priority_list]
+        df["prioritized?"] = ["Yes" if (x or str(x).strip().capitalize() =="Yes") else "No" for x in priority_list]
 
     
     firstFewCols = ["Index", "Name", "Position", "Max-hours", "Back-to-Back", "Courses", "social_credit_score", "prioritized?"]
@@ -128,7 +128,7 @@ def parse_data(
     #Correct the index column and update the new scores
     df.iloc[:, 0] = range(len(df))
     df["social_credit_score"] = social_credit_score_list
-    df["prioritized?"] = ["Yes" if (x or x.strip.capitalize =="Yes") else "No" for x in priority_list]
+    df["prioritized?"] = ["Yes" if (x or str(x).strip().capitalize() =="Yes") else "No" for x in priority_list]
 
     starting_of_preferences = df.columns.get_loc('prioritized?') + 1
 
@@ -175,12 +175,7 @@ if __name__ == "__main__":
         "If you plan to work more than one shift, would you prefer back-to-back shifts, or at different times throughout the week?": "Back-to-Back",
         "Which of the following courses do you feel qualified to Tutor?": "Courses",
     }
-    time_columns=[
-
-        "10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM",
-
-        "3-4 PM", "4-5 PM", "5-6 PM"],
-
+    time_columns=["10-11 AM", "11-12 PM", "12-1 PM", "1-2 PM", "2-3 PM", "3-4 PM", "4-5 PM", "5-6 PM"],
     days_of_week=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     
     cleaned_df = clean_data(input_path, 
