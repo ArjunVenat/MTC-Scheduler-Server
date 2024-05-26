@@ -56,6 +56,56 @@ CORS(app)
 #         analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
 #     return send_file(excel_file_path, as_attachment=True)
 
+# hoursTable = json.loads(request.form.get('hoursTable'))
+    # daySplice = request.form.get('daySplice')
+    # timeSplice = request.form.get('timeSplice')
+    # print(hoursTable)
+    # print(daySplice)
+    # print(timeSplice)
+
+    # mode = request.form.get('mode')
+    # print("mode = ", mode)
+
+    # if file.filename == '':
+    #     return 'No selected file', 400
+
+    # parameterTableOutput = parameter_table_parser(choices, mode)
+
+    # _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
+    # solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
+
+    # excel_file_path = 'solution.xlsx'
+    # with pd.ExcelWriter(excel_file_path) as writer:
+    #     solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
+    #     analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
+    # return send_file(excel_file_path, as_attachment=True)
+
+@app.route('/api/populate_table', methods=['POST'])
+def populate_table():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    
+    file = request.files['file']
+    fileType = request.form.get("filetype")
+    print(fileType)
+
+    if file.filename == '':
+        return 'No selected file', 400
+
+    if fileType == "raw":
+        df = pd.read_excel(file, header=1)
+        columns = get_column_names(df, fileType)
+        return jsonify({"columns": columns})
+
+    elif fileType == "clean":
+        df = pd.read_excel(file)
+        newDf = get_column_names(df, fileType)
+        return newDf.to_json()
+
+    print(columns)
+    # except:
+    #     return 'Incorrect File', 401
+
 @app.route('/api/clean_raw', methods=['POST'])
 def clean_raw():
     if 'file' not in request.files:
@@ -80,7 +130,22 @@ def clean_raw():
     
     return send_file(excel_file_path, as_attachment=True)
 
+@app.route('/api/feasibility_check', methods='[POST]')
+def feasibility_check():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    file = request.files['file']
+    hoursTable = json.loads(request.form.get('hoursTable'))
+    dayRange = json.loads(request.form.get('dayRange'))
+    timeRange = json.loads(request.form.get('timeRange'))
+    dayRange, timeRange, indices = fix_day_time(dayRange, timeRange)
 
+    l_jk, u_jk = hours_table_parser(hoursTable, dayRange, timeRange, indices=indices)
+    
+    lowerBound = np.sum(l_jk)
+    upperBound = np.sum(u_jk)
+
+    #now compare max-hours with lower and upper bound
 
 @app.route('/api/reclean', methods=['POST'])
 def reclean():
@@ -138,55 +203,9 @@ def get_solution():
         analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
     return send_file(excel_file_path, as_attachment=True)
 
-    # hoursTable = json.loads(request.form.get('hoursTable'))
-    # daySplice = request.form.get('daySplice')
-    # timeSplice = request.form.get('timeSplice')
-    # print(hoursTable)
-    # print(daySplice)
-    # print(timeSplice)
-
-    # mode = request.form.get('mode')
-    # print("mode = ", mode)
-
-    # if file.filename == '':
-    #     return 'No selected file', 400
-
-    # parameterTableOutput = parameter_table_parser(choices, mode)
-
-    # _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
-    # solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
-
-    # excel_file_path = 'solution.xlsx'
-    # with pd.ExcelWriter(excel_file_path) as writer:
-    #     solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
-    #     analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
-    # return send_file(excel_file_path, as_attachment=True)
-
-@app.route('/api/populate_table', methods=['POST'])
-def populate_table():
-    if 'file' not in request.files:
-        return 'No file part', 400
     
-    file = request.files['file']
-    fileType = request.form.get("filetype")
-    print(fileType)
 
-    if file.filename == '':
-        return 'No selected file', 400
 
-    if fileType == "raw":
-        df = pd.read_excel(file, header=1)
-        columns = get_column_names(df, fileType)
-        return jsonify({"columns": columns})
-
-    elif fileType == "clean":
-        df = pd.read_excel(file)
-        newDf = get_column_names(df, fileType)
-        return newDf.to_json()
-
-    print(columns)
-    # except:
-    #     return 'Incorrect File', 401
 
     
 if __name__ == '__main__':

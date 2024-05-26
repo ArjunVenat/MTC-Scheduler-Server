@@ -23,12 +23,12 @@ def fix_day_time(dayRange, timeRange):
     hoursTableEndTimeIndex = time_columns.index(timeRange[-1])-1 #Slider range from 8am-6pm means start at 8am-9am and end at 5pm-6pm
 
     dayRange = [day_map[i] for i in dayRange]
-    newDays = []
+    newTimes = []
     for i in range(0, len(timeRange)-1):
         # print(timeRange[i])
-        newDays.append(f"{timeRange[i][:-2]}-{timeRange[i+1][:-2]} {timeRange[i+1][-2:].upper()}")
+        newTimes.append(f"{timeRange[i][:-2]}-{timeRange[i+1][:-2]} {timeRange[i+1][-2:].upper()}")
     # print(dayRange, newDays)
-    return dayRange, newDays, [hoursTableStartDayIndex, hoursTableEndDayIndex, hoursTableStartTimeIndex, hoursTableEndTimeIndex]
+    return dayRange, newTimes, [hoursTableStartDayIndex, hoursTableEndDayIndex, hoursTableStartTimeIndex, hoursTableEndTimeIndex]
 
 def hours_table_parser(hoursTable, dayRange, timeRange, indices):
     hoursTable = hoursTable["dayTimeMinMax"]
