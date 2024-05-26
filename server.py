@@ -130,7 +130,7 @@ def clean_raw():
     
     return send_file(excel_file_path, as_attachment=True)
 
-@app.route('/api/feasibility_check', methods='[POST]')
+@app.route('/api/feasibility_check', methods=['POST'])
 def feasibility_check():
     if 'file' not in request.files:
         return 'No file part', 400
