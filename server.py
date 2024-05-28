@@ -8,78 +8,6 @@ from table_data import *
 app = Flask(__name__)
 CORS(app)
 
-# @app.route('/get_cleaned', methods=['POST', 'GET'])
-# def get_cleaned():
-#     if 'file' not in request.files:
-#         return 'No file part', 400
-
-#     file = request.files['file']
-#     choices = request.form.get('parameterTableChoices')
-#     choices = json.loads(choices)
-#     mode = request.form.get('mode')
-
-#     if file.filename == '':
-#         return 'No selected file', 400
-
-#     parameterTableOutput = parameter_table_parser(choices, mode)
-    
-#     cleaned_df, _ = get_data(mode, parameterTableOutput, file)
-
-#     excel_file_path = 'cleaned.xlsx'
-#     with pd.ExcelWriter(excel_file_path) as writer:
-#         cleaned_df.to_excel(writer, index=False, sheet_name="cleaned data")
-
-#     return send_file(excel_file_path, as_attachment=True)
-
-# @app.route('/api/get_solution', methods=['POST', 'GET'])
-# def get_solution():
-#     if 'file' not in request.files:
-#         return 'No file part', 400
-
-#     file = request.files['file']
-#     choices = request.form.get('parameterTableChoices')
-#     choices = json.loads(choices)
-#     mode = request.form.get('mode')
-#     print("mode = ", mode)
-
-#     if file.filename == '':
-#         return 'No selected file', 400
-
-#     parameterTableOutput = parameter_table_parser(choices, mode)
-
-#     _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
-#     solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
-
-#     excel_file_path = 'solution.xlsx'
-#     with pd.ExcelWriter(excel_file_path) as writer:
-#         solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
-#         analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
-#     return send_file(excel_file_path, as_attachment=True)
-
-# hoursTable = json.loads(request.form.get('hoursTable'))
-    # daySplice = request.form.get('daySplice')
-    # timeSplice = request.form.get('timeSplice')
-    # print(hoursTable)
-    # print(daySplice)
-    # print(timeSplice)
-
-    # mode = request.form.get('mode')
-    # print("mode = ", mode)
-
-    # if file.filename == '':
-    #     return 'No selected file', 400
-
-    # parameterTableOutput = parameter_table_parser(choices, mode)
-
-    # _, (student_workers, x_ijk, l_jk, u_jk, social_credit_score_list, priority_list) = get_data(mode, parameterTableOutput, file)
-    # solution, analytics_df = compute_solution(student_workers, x_ijk, l_jk, u_jk)
-
-    # excel_file_path = 'solution.xlsx'
-    # with pd.ExcelWriter(excel_file_path) as writer:
-    #     solution.to_excel(writer, sheet_name="output solution") #index not false to show the time columns
-    #     analytics_df.to_excel(writer, sheet_name="model analytics", index=False)
-    # return send_file(excel_file_path, as_attachment=True)
-
 @app.route('/api/populate_table', methods=['POST'])
 def populate_table():
     if 'file' not in request.files:
@@ -140,12 +68,31 @@ def feasibility_check():
     timeRange = json.loads(request.form.get('timeRange'))
     dayRange, timeRange, indices = fix_day_time(dayRange, timeRange)
 
+    df = pd.read_excel(file)
+
+    hoursMap = {"PLA": 1, "TA": 2, "Grader/ Tutor": 1}
+    maxWorkerHours = df["Max-hours"].sum()
+    minWorkerHours = df["Position"].apply(lambda x: hoursMap[x]).sum()
+
     l_jk, u_jk = hours_table_parser(hoursTable, dayRange, timeRange, indices=indices)
     
     lowerBound = np.sum(l_jk)
     upperBound = np.sum(u_jk)
 
-    #now compare max-hours with lower and upper bound
+    # print(maxWorkerHours, minWorkerHours)
+    # print(lowerBound, upperBound)
+
+    message = "Success, please wait for solution file to download"
+    statusFlag = False
+    if (upperBound < minWorkerHours):
+        message = f"Not all workers will be assigned a shift, please increase add more workers to shifts"
+        statusFlag = True
+    if (lowerBound > maxWorkerHours):
+        message = f"Not enough worker hours to satisfy minimum workers constraint"
+        statusFlag = True
+
+    toReturn = jsonify({'message': message, 'statusFlag': statusFlag})
+    return toReturn
 
 @app.route('/api/reclean', methods=['POST'])
 def reclean():
@@ -204,9 +151,5 @@ def get_solution():
     return send_file(excel_file_path, as_attachment=True)
 
     
-
-
-
-    
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
